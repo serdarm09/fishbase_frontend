@@ -621,6 +621,212 @@ body::after {
   white-space: nowrap;
 }
 
+.live-map-shell {
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid rgba(31, 122, 224, 0.18);
+  border-radius: 24px;
+  box-shadow: 0 28px 70px rgba(18, 67, 102, 0.18);
+  overflow: hidden;
+}
+
+.live-map-toolbar,
+.live-map-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+  position: relative;
+  z-index: 2;
+}
+
+.live-map-toolbar {
+  border-bottom: 1px solid rgba(31, 122, 224, 0.12);
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.live-map-footer {
+  border-top: 1px solid rgba(31, 122, 224, 0.12);
+  background: rgba(247, 251, 255, 0.88);
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+}
+
+.map-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.map-controls button {
+  min-width: 2.15rem;
+  height: 2.15rem;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid rgba(31, 122, 224, 0.2);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ocean-600);
+  cursor: pointer;
+  font-weight: 800;
+  box-shadow: 0 8px 18px rgba(18, 67, 102, 0.08);
+}
+
+.map-controls button:last-child {
+  min-width: 4.2rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+}
+
+.live-map-viewport {
+  height: clamp(460px, 68vh, 760px);
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  background:
+    radial-gradient(circle at 30% 18%, rgba(255, 255, 255, 0.84), transparent 30%),
+    radial-gradient(circle at 76% 70%, rgba(178, 226, 255, 0.56), transparent 34%),
+    linear-gradient(180deg, #f9fdff 0%, #dff4ff 100%);
+}
+
+.live-map-viewport:active {
+  cursor: grabbing;
+}
+
+.live-map-viewport.placement-active {
+  box-shadow: inset 0 0 0 3px rgba(255, 179, 71, 0.35);
+}
+
+.live-map-canvas {
+  position: absolute;
+  inset: 0;
+  transform-origin: center center;
+  transition: transform 0.12s ease-out;
+}
+
+.live-map-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background:
+    linear-gradient(120deg, rgba(255, 255, 255, 0.62), transparent 28%),
+    linear-gradient(180deg, rgba(184, 231, 255, 0.38), rgba(108, 195, 246, 0.18));
+}
+
+.land-mass {
+  fill: rgba(255, 255, 255, 0.96);
+  stroke: rgba(31, 122, 224, 0.18);
+  stroke-width: 0.38;
+}
+
+.land-mass-2,
+.land-mass-4 {
+  fill: rgba(250, 253, 255, 0.98);
+}
+
+.current-line {
+  fill: none;
+  stroke: rgba(15, 111, 209, 0.22);
+  stroke-linecap: round;
+  stroke-width: 0.6;
+  stroke-dasharray: 2 2.5;
+  animation: current-flow 9s linear infinite;
+}
+
+.current-line-two {
+  animation-duration: 12s;
+  opacity: 0.7;
+}
+
+@keyframes current-flow {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+.boat-pin,
+.map-reticle {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.boat-pin {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #ffffff;
+  border: 2px solid rgba(31, 122, 224, 0.32);
+  color: var(--ocean-600);
+  font-size: 0.62rem;
+  font-weight: 900;
+  box-shadow: 0 12px 26px rgba(18, 67, 102, 0.22);
+}
+
+.boat-pin.is-player {
+  background: linear-gradient(135deg, #d5fff6, #68dccb);
+  border-color: rgba(27, 153, 139, 0.72);
+  color: #0f5f57;
+}
+
+.boat-pin.is-boosted {
+  box-shadow: 0 0 0 5px rgba(255, 200, 104, 0.2), 0 14px 30px rgba(18, 67, 102, 0.24);
+}
+
+.boat-pin img {
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.map-reticle {
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 50%;
+  border: 2px solid rgba(31, 122, 224, 0.5);
+  box-shadow: 0 0 0 999px rgba(255, 255, 255, 0);
+}
+
+.map-reticle.is-land {
+  border-color: rgba(220, 38, 38, 0.72);
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.map-reticle.is-sea {
+  background: rgba(31, 122, 224, 0.08);
+}
+
+.legend-swatch {
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 4px;
+  display: inline-block;
+  margin-right: 0.35rem;
+  vertical-align: -0.12rem;
+  border: 1px solid rgba(31, 122, 224, 0.18);
+}
+
+.legend-swatch.sea {
+  background: #dff4ff;
+}
+
+.legend-swatch.land {
+  background: #fff;
+}
+
+.legend-swatch.player {
+  background: linear-gradient(135deg, #d5fff6, #68dccb);
+}
+
 /* ---------------------------------------------------------------------
  * Loading & status components
  * ------------------------------------------------------------------- */
@@ -681,6 +887,15 @@ body::after {
   .base-publish-note {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .live-map-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .live-map-viewport {
+    height: 520px;
   }
 }
 
