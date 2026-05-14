@@ -62,13 +62,12 @@ export default function LandingPage() {
 
       <section className="ocean-card base-publish-note">
         <div>
-          <h2 className="text-xl font-bold text-gray-800">Base App publishing profile</h2>
+          <h2 className="text-xl font-bold text-gray-800">Built for Base App</h2>
           <p className="text-sm text-gray-600 mt-2">
-            The app exposes the Base project id in the root metadata and uses
-            wallet authentication as the primary Base App entry path.
+            Wallet authentication is the primary entry path, with the required
+            Base publishing metadata kept in the document head.
           </p>
         </div>
-        <code>base:app_id 6a01ca209ee68cd142d1b1ac</code>
       </section>
     </main>
   );
