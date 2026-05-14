@@ -1,0 +1,68 @@
+import type { Metadata, Viewport } from "next";
+import { Nunito } from "next/font/google";
+import "./globals.css";
+import { ClientProviders } from "./ClientProviders";
+
+const nunito = Nunito({
+  subsets: ["latin"],
+  variable: "--font-nunito",
+  weight: ["300", "400", "500", "600", "700", "800"],
+});
+
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://fishbase.app";
+const baseAppId = "6a01ca209ee68cd142d1b1ac";
+
+export const metadata: Metadata = {
+  metadataBase: new URL(appUrl),
+  title: {
+    default: "FishBase",
+    template: "%s | FishBase",
+  },
+  description:
+    "Connect a Base wallet, deploy fishing boats, earn XP, and climb the FishBase leaderboards.",
+  applicationName: "FishBase",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/icon.png",
+  },
+  openGraph: {
+    title: "FishBase",
+    description:
+      "A Base App fishing game where captains place boats, collect daily XP, and compete onchain.",
+    url: appUrl,
+    siteName: "FishBase",
+    images: [{ url: "/icon.png", width: 1024, height: 1024, alt: "FishBase" }],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "FishBase",
+    description:
+      "Place boats, earn XP, and compete with your Base wallet in FishBase.",
+    images: ["/icon.png"],
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: "#0f6fd1",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en">
+      <head>
+        <meta name="base:app_id" content={baseAppId} />
+      </head>
+      <body className={`${nunito.variable} app-shell antialiased`}>
+        <ClientProviders>{children}</ClientProviders>
+      </body>
+    </html>
+  );
+}
