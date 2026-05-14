@@ -13,7 +13,7 @@ interface GameMapProps {
   isLoading?: boolean;
   canTogglePlacement?: boolean;
   onTogglePlacement?: () => void;
-  onCellClick?: (x: number, y: number) => void | Promise<void>;
+  onCellClick?: (x: number, y: number, lat?: number, lng?: number) => void | Promise<void>;
 }
 
 const GameMap: React.FC<GameMapProps> = ({
@@ -64,9 +64,9 @@ const GameMap: React.FC<GameMapProps> = ({
         gridSize={100}
         boats={boats}
         playerBoat={playerBoat}
-        onCellClick={(x, y) => {
+        onCellClick={(x, y, lat, lng) => {
           if (!isPlacementMode || isLoading) return;
-          onCellClick?.(x, y);
+          onCellClick?.(x, y, lat, lng);
         }}
         isPlacementMode={isPlacementMode}
       />
@@ -74,7 +74,8 @@ const GameMap: React.FC<GameMapProps> = ({
       <div className="ocean-card bg-blue-50/70 border space-y-2">
         <p className="text-blue-800 text-sm">
           Shift your boat at least once every 24 hours. Waiting longer reduces that day&apos;s XP to
-          10%. Boats can only be placed on open sea; white land areas are locked.
+          10%. Choose a sea point on the real map, then confirm a 0 ETH Base transaction to
+          record the placement.
         </p>
         {playerBoost && playerBoost.level !== 'NONE' && playerBoost.image && (
           <div className="flex items-center gap-2 text-xs text-gray-500">

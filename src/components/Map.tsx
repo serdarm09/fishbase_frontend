@@ -1,59 +1,72 @@
 'use client';
 
-import React, { PointerEvent, WheelEvent, useMemo, useRef, useState } from 'react';
+import React, {
+  PointerEvent,
+  WheelEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { BoatPlacement } from '@/types';
 
 interface MapProps {
   gridSize?: number;
   boats?: BoatPlacement[];
-  onCellClick?: (x: number, y: number) => void;
+  onCellClick?: (x: number, y: number, lat: number, lng: number) => void;
   playerBoat?: BoatPlacement | null;
   isPlacementMode?: boolean;
 }
 
-type LandMass = {
-  cx: number;
-  cy: number;
-  rx: number;
-  ry: number;
-  rotation: number;
-};
+type LatLng = { lat: number; lng: number };
+type WorldPoint = { x: number; y: number };
 
-const LAND_MASSES: LandMass[] = [
-  { cx: 18, cy: 18, rx: 17, ry: 12, rotation: -12 },
-  { cx: 22, cy: 59, rx: 14, ry: 25, rotation: 8 },
-  { cx: 54, cy: 24, rx: 22, ry: 12, rotation: -5 },
-  { cx: 78, cy: 58, rx: 17, ry: 25, rotation: 11 },
-  { cx: 50, cy: 83, rx: 21, ry: 10, rotation: -2 },
-  { cx: 91, cy: 18, rx: 9, ry: 10, rotation: 0 },
-];
+const TILE_SIZE = 256;
+const MIN_ZOOM = 4;
+const MAX_ZOOM = 10;
+const INITIAL_ZOOM = 6;
+const INITIAL_CENTER: LatLng = { lat: 39.3, lng: 29.5 };
+const MAP_BOUNDS = { north: 47.2, south: 29.2, west: 17.3, east: 43.8 };
+const TILE_HOSTS = ['a', 'b', 'c'];
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-
-const isInsideRotatedEllipse = (x: number, y: number, land: LandMass) => {
-  const angle = (land.rotation * Math.PI) / 180;
-  const cos = Math.cos(angle);
-  const sin = Math.sin(angle);
-  const dx = x - land.cx;
-  const dy = y - land.cy;
-  const rotatedX = dx * cos + dy * sin;
-  const rotatedY = -dx * sin + dy * cos;
-
-  return (
-    (rotatedX * rotatedX) / (land.rx * land.rx) +
-      (rotatedY * rotatedY) / (land.ry * land.ry) <=
-    1
-  );
+const wrapTileX = (x: number, zoom: number) => {
+  const max = 2 ** zoom;
+  return ((x % max) + max) % max;
 };
 
-const isSeaCoordinate = (x: number, y: number, gridSize: number) => {
-  if (!Number.isInteger(x) || !Number.isInteger(y)) return false;
-  if (x < 0 || x >= gridSize || y < 0 || y >= gridSize) return false;
+const latLngToWorld = ({ lat, lng }: LatLng, zoom: number): WorldPoint => {
+  const sin = Math.sin((clamp(lat, -85.0511, 85.0511) * Math.PI) / 180);
+  const scale = TILE_SIZE * 2 ** zoom;
 
-  const normalizedX = (x / (gridSize - 1)) * 100;
-  const normalizedY = (y / (gridSize - 1)) * 100;
-  return !LAND_MASSES.some((land) => isInsideRotatedEllipse(normalizedX, normalizedY, land));
+  return {
+    x: ((lng + 180) / 360) * scale,
+    y: (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * scale,
+  };
 };
+
+const worldToLatLng = ({ x, y }: WorldPoint, zoom: number): LatLng => {
+  const scale = TILE_SIZE * 2 ** zoom;
+  const lng = (x / scale) * 360 - 180;
+  const n = Math.PI - (2 * Math.PI * y) / scale;
+  const lat = (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+  return { lat, lng };
+};
+
+const tileUrl = (x: number, y: number, z: number) => {
+  const host = TILE_HOSTS[Math.abs(x + y + z) % TILE_HOSTS.length];
+  return `https://${host}.basemaps.cartocdn.com/light_all/${z}/${wrapTileX(x, z)}/${y}.png`;
+};
+
+const gridToLatLng = (x: number, y: number, gridSize: number): LatLng => ({
+  lng: MAP_BOUNDS.west + (x / (gridSize - 1)) * (MAP_BOUNDS.east - MAP_BOUNDS.west),
+  lat: MAP_BOUNDS.north - (y / (gridSize - 1)) * (MAP_BOUNDS.north - MAP_BOUNDS.south),
+});
+
+const latLngToGrid = ({ lat, lng }: LatLng, gridSize: number) => ({
+  x: clamp(Math.round(((lng - MAP_BOUNDS.west) / (MAP_BOUNDS.east - MAP_BOUNDS.west)) * (gridSize - 1)), 0, gridSize - 1),
+  y: clamp(Math.round(((MAP_BOUNDS.north - lat) / (MAP_BOUNDS.north - MAP_BOUNDS.south)) * (gridSize - 1)), 0, gridSize - 1),
+});
 
 const boatMark = (type: string) => {
   switch (type) {
@@ -78,11 +91,31 @@ const SeaMap: React.FC<MapProps> = ({
   isPlacementMode = false,
 }) => {
   const viewportRef = useRef<HTMLDivElement | null>(null);
-  const dragState = useRef<{ pointerId: number; x: number; y: number; panX: number; panY: number } | null>(null);
+  const dragState = useRef<{ pointerId: number; x: number; y: number; center: LatLng } | null>(null);
   const didDrag = useRef(false);
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [hoveredCell, setHoveredCell] = useState<{ x: number; y: number; sea: boolean } | null>(null);
+  const waterCache = useRef(new globalThis.Map<string, Promise<boolean>>());
+  const [center, setCenter] = useState<LatLng>(INITIAL_CENTER);
+  const [zoom, setZoom] = useState(INITIAL_ZOOM);
+  const [viewportSize, setViewportSize] = useState({ width: 960, height: 620 });
+  const [hoveredPoint, setHoveredPoint] = useState<{ lat: number; lng: number; x: number; y: number } | null>(null);
+  const [mapMessage, setMapMessage] = useState('Use + / - or mouse wheel to zoom. Drag the real map to explore.');
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    const updateSize = () => {
+      setViewportSize({
+        width: viewport.clientWidth || 960,
+        height: viewport.clientHeight || 620,
+      });
+    };
+
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, []);
 
   const occupiedLookup = useMemo(() => {
     const lookup = new globalThis.Map<string, BoatPlacement>();
@@ -90,61 +123,156 @@ const SeaMap: React.FC<MapProps> = ({
     return lookup;
   }, [boats]);
 
+  const centerWorld = useMemo(() => latLngToWorld(center, zoom), [center, zoom]);
+  const topLeft = useMemo(
+    () => ({
+      x: centerWorld.x - viewportSize.width / 2,
+      y: centerWorld.y - viewportSize.height / 2,
+    }),
+    [centerWorld, viewportSize]
+  );
+
+  const visibleTiles = useMemo(() => {
+    const maxTile = 2 ** zoom - 1;
+    const startX = Math.floor(topLeft.x / TILE_SIZE) - 1;
+    const endX = Math.floor((topLeft.x + viewportSize.width) / TILE_SIZE) + 1;
+    const startY = Math.max(0, Math.floor(topLeft.y / TILE_SIZE) - 1);
+    const endY = Math.min(maxTile, Math.floor((topLeft.y + viewportSize.height) / TILE_SIZE) + 1);
+    const tiles: Array<{ x: number; y: number; wrappedX: number; left: number; top: number; url: string }> = [];
+
+    for (let y = startY; y <= endY; y += 1) {
+      for (let x = startX; x <= endX; x += 1) {
+        const wrappedX = wrapTileX(x, zoom);
+        tiles.push({
+          x,
+          y,
+          wrappedX,
+          left: x * TILE_SIZE - topLeft.x,
+          top: y * TILE_SIZE - topLeft.y,
+          url: tileUrl(x, y, zoom),
+        });
+      }
+    }
+
+    return tiles;
+  }, [topLeft, viewportSize, zoom]);
+
   const setZoomLevel = (nextZoom: number) => {
-    setZoom(clamp(Number(nextZoom.toFixed(2)), 0.75, 2.75));
+    setZoom(clamp(Math.round(nextZoom), MIN_ZOOM, MAX_ZOOM));
   };
 
   const resetView = () => {
-    setZoom(1);
-    setPan({ x: 0, y: 0 });
+    setCenter(INITIAL_CENTER);
+    setZoom(INITIAL_ZOOM);
+    setMapMessage('Map view reset.');
   };
 
-  const getMapPoint = (clientX: number, clientY: number) => {
+  const getLatLngFromClient = (clientX: number, clientY: number) => {
     const viewport = viewportRef.current;
     if (!viewport) return null;
     const rect = viewport.getBoundingClientRect();
-    const mapX = ((clientX - rect.left - rect.width / 2 - pan.x) / zoom + rect.width / 2) / rect.width;
-    const mapY = ((clientY - rect.top - rect.height / 2 - pan.y) / zoom + rect.height / 2) / rect.height;
-    const x = clamp(Math.floor(mapX * gridSize), 0, gridSize - 1);
-    const y = clamp(Math.floor(mapY * gridSize), 0, gridSize - 1);
-    return { x, y };
+    const world = {
+      x: topLeft.x + clientX - rect.left,
+      y: topLeft.y + clientY - rect.top,
+    };
+    return worldToLatLng(world, zoom);
   };
 
-  const handleMapClick = (event: React.MouseEvent<HTMLDivElement>) => {
+  const isWaterAt = async (latLng: LatLng) => {
+    const world = latLngToWorld(latLng, zoom);
+    const tileX = Math.floor(world.x / TILE_SIZE);
+    const tileY = Math.floor(world.y / TILE_SIZE);
+    const pixelX = Math.floor(world.x - tileX * TILE_SIZE);
+    const pixelY = Math.floor(world.y - tileY * TILE_SIZE);
+    const cacheKey = `${zoom}/${wrapTileX(tileX, zoom)}/${tileY}/${pixelX}/${pixelY}`;
+
+    if (!waterCache.current.has(cacheKey)) {
+      waterCache.current.set(
+        cacheKey,
+        new Promise<boolean>((resolve) => {
+          const image = new Image();
+          image.crossOrigin = 'anonymous';
+          image.onload = () => {
+            try {
+              const canvas = document.createElement('canvas');
+              canvas.width = TILE_SIZE;
+              canvas.height = TILE_SIZE;
+              const ctx = canvas.getContext('2d', { willReadFrequently: true });
+              if (!ctx) {
+                resolve(false);
+                return;
+              }
+
+              ctx.drawImage(image, 0, 0);
+              const sample = ctx.getImageData(clamp(pixelX - 2, 0, 251), clamp(pixelY - 2, 0, 251), 5, 5).data;
+              let waterVotes = 0;
+              let counted = 0;
+
+              for (let index = 0; index < sample.length; index += 4) {
+                const r = sample[index];
+                const g = sample[index + 1];
+                const b = sample[index + 2];
+                const isLabel = r < 80 && g < 80 && b < 80;
+                if (isLabel) continue;
+                counted += 1;
+                if (b > r + 8 && b >= g - 4 && r < 235) waterVotes += 1;
+              }
+
+              resolve(counted > 0 && waterVotes / counted >= 0.52);
+            } catch {
+              resolve(false);
+            }
+          };
+          image.onerror = () => resolve(false);
+          image.src = tileUrl(tileX, tileY, zoom);
+        })
+      );
+    }
+
+    return waterCache.current.get(cacheKey)!;
+  };
+
+  const handleMapClick = async (event: React.MouseEvent<HTMLDivElement>) => {
     if (!isPlacementMode) return;
     if (didDrag.current) {
       didDrag.current = false;
       return;
     }
 
-    const point = getMapPoint(event.clientX, event.clientY);
-    if (!point) return;
+    const latLng = getLatLngFromClient(event.clientX, event.clientY);
+    if (!latLng) return;
+    const grid = latLngToGrid(latLng, gridSize);
 
-    const sea = isSeaCoordinate(point.x, point.y, gridSize);
-    if (!sea || occupiedLookup.has(`${point.x}-${point.y}`)) return;
-    onCellClick?.(point.x, point.y);
+    if (occupiedLookup.has(`${grid.x}-${grid.y}`)) {
+      setMapMessage('That sea point is already occupied by another boat.');
+      return;
+    }
+
+    setMapMessage('Checking if this point is open water...');
+    const water = await isWaterAt(latLng);
+    if (!water) {
+      setMapMessage('That point looks like land. Choose a sea area.');
+      return;
+    }
+
+    onCellClick?.(grid.x, grid.y, latLng.lat, latLng.lng);
   };
 
   const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
     const activeDrag = dragState.current;
     if (activeDrag && activeDrag.pointerId === event.pointerId) {
-      if (Math.abs(event.clientX - activeDrag.x) + Math.abs(event.clientY - activeDrag.y) > 6) {
-        didDrag.current = true;
-      }
+      const dx = event.clientX - activeDrag.x;
+      const dy = event.clientY - activeDrag.y;
+      if (Math.abs(dx) + Math.abs(dy) > 6) didDrag.current = true;
 
-      setPan({
-        x: activeDrag.panX + event.clientX - activeDrag.x,
-        y: activeDrag.panY + event.clientY - activeDrag.y,
-      });
+      const startWorld = latLngToWorld(activeDrag.center, zoom);
+      setCenter(worldToLatLng({ x: startWorld.x - dx, y: startWorld.y - dy }, zoom));
       return;
     }
 
-    const point = getMapPoint(event.clientX, event.clientY);
-    if (!point) return;
-    setHoveredCell({
-      ...point,
-      sea: isSeaCoordinate(point.x, point.y, gridSize),
-    });
+    const latLng = getLatLngFromClient(event.clientX, event.clientY);
+    if (!latLng) return;
+    setHoveredPoint({ ...latLng, ...latLngToGrid(latLng, gridSize) });
   };
 
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
@@ -153,41 +281,50 @@ const SeaMap: React.FC<MapProps> = ({
       pointerId: event.pointerId,
       x: event.clientX,
       y: event.clientY,
-      panX: pan.x,
-      panY: pan.y,
+      center,
     };
     didDrag.current = false;
     event.currentTarget.setPointerCapture(event.pointerId);
   };
 
   const handlePointerUp = (event: PointerEvent<HTMLDivElement>) => {
-    if (dragState.current?.pointerId === event.pointerId) {
-      dragState.current = null;
-    }
+    if (dragState.current?.pointerId === event.pointerId) dragState.current = null;
   };
 
   const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
     event.preventDefault();
-    setZoomLevel(zoom + (event.deltaY > 0 ? -0.12 : 0.12));
+    setZoomLevel(zoom + (event.deltaY > 0 ? -1 : 1));
   };
+
+  const boatPins = boats.map((boat) => {
+    const position = gridToLatLng(boat.x, boat.y, gridSize);
+    const world = latLngToWorld(position, zoom);
+    const isPlayerBoat = playerBoat?.x === boat.x && playerBoat?.y === boat.y;
+    return {
+      boat,
+      isPlayerBoat,
+      left: world.x - topLeft.x,
+      top: world.y - topLeft.y,
+    };
+  });
 
   return (
     <div className="live-map-shell">
       <div className="live-map-toolbar">
         <div>
-          <p className="text-sm font-semibold text-gray-800">White Sea Map</p>
+          <p className="text-sm font-semibold text-gray-800">Real Sea Map</p>
           <p className="text-xs text-gray-500">
-            {hoveredCell
-              ? `${hoveredCell.sea ? 'Open sea' : 'Land'} (${hoveredCell.x}, ${hoveredCell.y})`
-              : 'Drag the map, zoom in, and drop boats only on sea.'}
+            {hoveredPoint
+              ? `${hoveredPoint.lat.toFixed(4)}, ${hoveredPoint.lng.toFixed(4)} | grid ${hoveredPoint.x}, ${hoveredPoint.y}`
+              : mapMessage}
           </p>
         </div>
         <div className="map-controls" aria-label="Map controls">
-          <button type="button" onClick={() => setZoomLevel(zoom - 0.25)} aria-label="Zoom out">
+          <button type="button" onClick={() => setZoomLevel(zoom - 1)} aria-label="Zoom out">
             -
           </button>
-          <span>{Math.round(zoom * 100)}%</span>
-          <button type="button" onClick={() => setZoomLevel(zoom + 0.25)} aria-label="Zoom in">
+          <span>Z{zoom}</span>
+          <button type="button" onClick={() => setZoomLevel(zoom + 1)} aria-label="Zoom in">
             +
           </button>
           <button type="button" onClick={resetView} aria-label="Reset map">
@@ -198,94 +335,55 @@ const SeaMap: React.FC<MapProps> = ({
 
       <div
         ref={viewportRef}
-        className={`live-map-viewport ${isPlacementMode ? 'placement-active' : ''}`}
+        className={`live-map-viewport real-map-viewport ${isPlacementMode ? 'placement-active' : ''}`}
         onClick={handleMapClick}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
-        onPointerLeave={() => setHoveredCell(null)}
+        onPointerLeave={() => setHoveredPoint(null)}
         onWheel={handleWheel}
       >
-        <div
-          className="live-map-canvas"
-          style={{
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-          }}
-        >
-          <svg className="live-map-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-            <defs>
-              <pattern id="sea-grid" width="5" height="5" patternUnits="userSpaceOnUse">
-                <path d="M 5 0 L 0 0 0 5" fill="none" stroke="rgba(15,111,209,.1)" strokeWidth=".18" />
-              </pattern>
-              <filter id="land-shadow" x="-15%" y="-15%" width="130%" height="130%">
-                <feDropShadow dx="0" dy="1" stdDeviation="1" floodColor="rgba(15,82,130,.16)" />
-              </filter>
-            </defs>
-            <rect width="100" height="100" fill="url(#sea-grid)" />
-            <path
-              d="M0 36 C12 33 21 36 31 33 C43 29 50 34 61 31 C72 28 84 24 100 29"
-              className="current-line current-line-one"
-            />
-            <path
-              d="M0 71 C15 75 28 69 40 72 C55 77 66 69 80 72 C88 74 94 78 100 76"
-              className="current-line current-line-two"
-            />
-            {LAND_MASSES.map((land, index) => (
-              <ellipse
-                key={`${land.cx}-${land.cy}`}
-                cx={land.cx}
-                cy={land.cy}
-                rx={land.rx}
-                ry={land.ry}
-                transform={`rotate(${land.rotation} ${land.cx} ${land.cy})`}
-                className={`land-mass land-mass-${index + 1}`}
-                filter="url(#land-shadow)"
-              />
-            ))}
-          </svg>
+        {visibleTiles.map((tile) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={`${zoom}-${tile.x}-${tile.y}`}
+            src={tile.url}
+            alt=""
+            className="map-tile"
+            draggable={false}
+            style={{ left: tile.left, top: tile.top }}
+          />
+        ))}
 
-          {hoveredCell && (
-            <div
-              className={`map-reticle ${hoveredCell.sea ? 'is-sea' : 'is-land'}`}
-              style={{
-                left: `${((hoveredCell.x + 0.5) / gridSize) * 100}%`,
-                top: `${((hoveredCell.y + 0.5) / gridSize) * 100}%`,
-              }}
-            />
-          )}
-
-          {boats.map((boat) => {
-            const isPlayerBoat = playerBoat?.x === boat.x && playerBoat?.y === boat.y;
-            return (
-              <div
-                key={boat.id}
-                className={`boat-pin ${isPlayerBoat ? 'is-player' : ''} ${
-                  boat.boostLevel !== 'NONE' ? 'is-boosted' : ''
-                }`}
-                style={{
-                  left: `${((boat.x + 0.5) / gridSize) * 100}%`,
-                  top: `${((boat.y + 0.5) / gridSize) * 100}%`,
-                }}
-                title={`${boat.ownerUsername} - ${boat.boatType} (${boat.x}, ${boat.y})`}
-              >
-                {boat.boostImage ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={boat.boostImage} alt="" />
-                ) : (
-                  <span>{boatMark(boat.boatType)}</span>
-                )}
-              </div>
-            );
-          })}
+        <div className="map-attribution">
+          © OpenStreetMap © CARTO
         </div>
+
+        {boatPins.map(({ boat, isPlayerBoat, left, top }) => (
+          <div
+            key={boat.id}
+            className={`boat-pin ${isPlayerBoat ? 'is-player' : ''} ${
+              boat.boostLevel !== 'NONE' ? 'is-boosted' : ''
+            }`}
+            style={{ left, top }}
+            title={`${boat.ownerUsername} - ${boat.boatType} (${boat.x}, ${boat.y})`}
+          >
+            {boat.boostImage ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={boat.boostImage} alt="" />
+            ) : (
+              <span>{boatMark(boat.boatType)}</span>
+            )}
+          </div>
+        ))}
       </div>
 
       <div className="live-map-footer">
-        <span><i className="legend-swatch sea" /> Sea placement</span>
-        <span><i className="legend-swatch land" /> Land locked</span>
+        <span><i className="legend-swatch sea" /> Click sea areas only</span>
         <span><i className="legend-swatch player" /> Your boat</span>
         <span>{boats.length} active boats</span>
+        <span>{mapMessage}</span>
       </div>
     </div>
   );

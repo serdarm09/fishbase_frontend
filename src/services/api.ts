@@ -83,14 +83,20 @@ export const gameApi = {
   async getMap(token: string) {
     return request<{ success: boolean; map: any }>('/game/map', { token });
   },
-  async placeBoat(token: string, payload: { x: number; y: number }) {
+  async placeBoat(
+    token: string,
+    payload: { x: number; y: number; lat?: number; lng?: number; placementTxHash?: string }
+  ) {
     return request<{ success: boolean; placement: any }>('/game/place-boat', {
       token,
       method: 'POST',
       body: JSON.stringify(payload),
     });
   },
-  async moveBoat(token: string, payload: { x: number; y: number }) {
+  async moveBoat(
+    token: string,
+    payload: { x: number; y: number; lat?: number; lng?: number; placementTxHash?: string }
+  ) {
     return request<{ success: boolean; movement: any }>('/game/move-boat', {
       token,
       method: 'POST',

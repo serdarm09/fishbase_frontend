@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { BrowserProvider } from 'ethers';
 import { useAuth } from '@/context/AuthContext';
 import GameMap from '@/components/GameMap';
 import { gameApi } from '@/services/api';
@@ -18,6 +19,13 @@ type MapBoatResponse = {
   xp?: number;
   placedAt?: string;
 };
+
+type EthereumProvider = {
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+};
+
+const getEthereumProvider = () =>
+  (window as typeof window & { ethereum?: EthereumProvider }).ethereum;
 
 const convertBoat = (boat: MapBoatResponse): BoatPlacement => ({
   id: boat.id,
@@ -100,7 +108,34 @@ export default function MapPage() {
     fetchMap();
   }, [fetchMap]);
 
-  const handlePlacement = async (x: number, y: number) => {
+  const sendPlacementTransaction = async () => {
+    const ethereum = getEthereumProvider();
+    if (!ethereum) {
+      throw new Error('Open FishBase in Base App or a wallet browser to place a boat.');
+    }
+
+    try {
+      await ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: '0x2105' }],
+      });
+    } catch {
+      // Some wallet browsers are already on Base and do not expose chain switching.
+    }
+
+    const provider = new BrowserProvider(ethereum);
+    await provider.send('eth_requestAccounts', []);
+    const signer = await provider.getSigner();
+    const signerAddress = await signer.getAddress();
+    const tx = await signer.sendTransaction({
+      to: signerAddress,
+      value: 0,
+    });
+
+    return tx.hash;
+  };
+
+  const handlePlacement = async (x: number, y: number, lat?: number, lng?: number) => {
     if (!token) return;
 
     setIsActionLoading(true);
@@ -108,12 +143,16 @@ export default function MapPage() {
     setSuccessMessage(null);
 
     try {
+      setSuccessMessage('Confirm the 0 ETH Base transaction in your wallet...');
+      const placementTxHash = await sendPlacementTransaction();
+      setSuccessMessage('Transaction sent. Saving your boat position...');
+
       if (playerBoat) {
-        await gameApi.moveBoat(token, { x, y });
-        setSuccessMessage(`Your boat was moved to (${x}, ${y}).`);
+        await gameApi.moveBoat(token, { x, y, lat, lng, placementTxHash });
+        setSuccessMessage(`Your boat was moved to (${x}, ${y}). Tx: ${placementTxHash.slice(0, 10)}...`);
       } else {
-        await gameApi.placeBoat(token, { x, y });
-        setSuccessMessage(`Your boat was placed at (${x}, ${y}).`);
+        await gameApi.placeBoat(token, { x, y, lat, lng, placementTxHash });
+        setSuccessMessage(`Your boat was placed at (${x}, ${y}). Tx: ${placementTxHash.slice(0, 10)}...`);
       }
       await fetchMap();
       setIsPlacementMode(false);
@@ -162,7 +201,7 @@ export default function MapPage() {
                 Daily XP: {activeBoatInfo.dailyXp ?? '—'} | {activeBoatInfo.isPlaced ? 'Deployed on the map' : 'Waiting to be deployed'}
               </p>
             </div>
-            <div className="chip">Placement fee: 0.001 ETH</div>
+            <div className="chip">Requires 0 ETH Base transaction</div>
           </div>
         ) : (
           <div className="empty-state">

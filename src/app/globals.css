@@ -15,6 +15,15 @@ html, body {
   scroll-behavior: smooth;
 }
 
+a {
+  text-decoration: none;
+}
+
+a:hover,
+a:focus {
+  text-decoration: none;
+}
+
 :root {
   --sky-50: #EEF7FF;
   --sky-100: #D9F0FF;
@@ -694,6 +703,10 @@ body::after {
     linear-gradient(180deg, #f9fdff 0%, #dff4ff 100%);
 }
 
+.real-map-viewport {
+  background: #dcebf0;
+}
+
 .live-map-viewport:active {
   cursor: grabbing;
 }
@@ -717,6 +730,27 @@ body::after {
   background:
     linear-gradient(120deg, rgba(255, 255, 255, 0.62), transparent 28%),
     linear-gradient(180deg, rgba(184, 231, 255, 0.38), rgba(108, 195, 246, 0.18));
+}
+
+.map-tile {
+  position: absolute;
+  width: 256px;
+  height: 256px;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.map-attribution {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(31, 122, 224, 0.16);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  padding: 0.3rem 0.55rem;
+  pointer-events: none;
 }
 
 .land-mass {
