@@ -21,11 +21,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="relative pb-20">
+    <div className="app-layout relative pb-20">
       <div className="floating-fish" style={{ top: '8%', left: '6%' }} aria-hidden="true" />
       <div className="floating-fish" style={{ top: '65%', left: '88%', animationDelay: '1.5s' }} aria-hidden="true" />
 
-      <div className="container py-6 flex flex-col gap-6">
+      <div className="container app-content py-6 flex flex-col gap-6">
         <MainNavigation />
         <main>{children}</main>
       </div>
