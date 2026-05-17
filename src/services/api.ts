@@ -77,6 +77,16 @@ export const gameApi = {
   async getProfile(token: string) {
     return request<{ success: boolean; profile: any }>('/game/profile', { token });
   },
+  async updateProfile(
+    token: string,
+    payload: { username?: string; displayName?: string }
+  ) {
+    return request<{ success: boolean; profile: any }>('/game/profile', {
+      token,
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
   async getStats(token: string) {
     return request<{ success: boolean; stats: any }>('/game/stats', { token });
   },

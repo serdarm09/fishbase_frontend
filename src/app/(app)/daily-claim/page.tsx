@@ -6,6 +6,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { useAuth } from '@/context/AuthContext';
 import { gameApi } from '@/services/api';
 import type { UserProfile } from '@/types';
+import { Gift, Calendar, CheckCircle2, Clock, Anchor, Zap } from 'lucide-react';
 
 dayjs.extend(relativeTime);
 
@@ -74,7 +75,7 @@ export default function DailyClaimPage() {
       const claim = result.claim;
 
       setSuccess(
-        `🎉 You earned ${claim.xpEarned} XP! New streak ${claim.newStreak} days, multiplier ${(claim.streakMultiplier || 1).toFixed(2)}x.`
+        `You earned ${claim.xpEarned} XP! New streak ${claim.newStreak} days, multiplier ${(claim.streakMultiplier || 1).toFixed(2)}x.`
       );
 
       setClaimState({
@@ -114,125 +115,133 @@ export default function DailyClaimPage() {
   }, [claimState.nextClaimTime]);
 
   return (
-    <section className="space-y-6">
-      <header className="ocean-card space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+    <section className="space-y-6 max-w-5xl mx-auto pb-8">
+      <header className="bg-white/80 backdrop-blur border border-blue-100 rounded-2xl p-6 shadow-sm space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <h1 className="page-heading">
+            <h1 className="text-3xl font-extrabold text-blue-900 flex items-center gap-3">
               Daily Reward Deck
-              <span className="badge">7-day multiplier</span>
+              <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-bold border border-blue-200">
+                7-day multiplier
+              </span>
             </h1>
-            <p className="page-subtitle">
+            <p className="text-gray-600 mt-2">
               Visit the deck every day, grow your streak, and double your fishing XP on Base.
             </p>
           </div>
-          <div className="ocean-card bg-blue-100/60 border px-4 py-3">
-            <p className="text-sm text-gray-600">Today&apos;s multiplier</p>
-            <p className="text-2xl font-bold text-blue-700">{multiplier.toFixed(2)}x</p>
+          <div className="bg-blue-50 border border-blue-200 rounded-xl px-6 py-4 flex flex-col items-center justify-center min-w-[140px]">
+            <p className="text-xs text-blue-600 font-semibold uppercase tracking-wider mb-1">Today's multiplier</p>
+            <p className="text-4xl font-black text-blue-700 flex items-center gap-1">
+              <Zap size={24} className="text-amber-500 fill-amber-500" />
+              {multiplier.toFixed(2)}x
+            </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 grid-md-3 gap-3">
-          <div className="ocean-card border bg-white/85 p-4">
-            <p className="text-sm text-gray-500">Active streak</p>
-            <p className="text-3xl font-bold text-blue-700">{currentStreak} days</p>
-            <p className="text-xs text-gray-500">Longest streak: {profile?.longestStreak || 0} days</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
+            <p className="text-sm font-semibold text-gray-500 mb-1">Active streak</p>
+            <p className="text-3xl font-bold text-gray-800">{currentStreak} days</p>
+            <p className="text-xs text-gray-400 mt-2">Longest streak: {profile?.longestStreak || 0} days</p>
           </div>
-          <div className="ocean-card border bg-white/85 p-4">
-            <p className="text-sm text-gray-500">Daily XP base</p>
-            <p className="text-3xl font-bold text-blue-700">
-              {activeBoat?.dailyXp ? `${activeBoat.dailyXp} XP` : 'No active boat'}
+          <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
+            <p className="text-sm font-semibold text-gray-500 mb-1">Daily XP base</p>
+            <p className="text-3xl font-bold text-gray-800">
+              {activeBoat?.dailyXp ? `${activeBoat.dailyXp} XP` : 'No boat'}
             </p>
-            <p className="text-xs text-gray-500">
-              Active boat: {activeBoat ? activeBoat.boatType : 'None'}
-            </p>
-            <p className="text-xs text-amber-600 mt-1">
-              Tip: move your boat every 24 hours or the next reward drops to 10% of this value.
+            <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+              <Anchor size={12} /> {activeBoat ? activeBoat.boatType : 'None active'}
             </p>
           </div>
-          <div className="ocean-card border bg-white/85 p-4">
-            <p className="text-sm text-gray-500">Last claim</p>
-            <p className="text-3xl font-bold text-blue-700">
-              {profile?.lastClaimDate ? dayjs(profile.lastClaimDate).fromNow() : '—'}
+          <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
+            <p className="text-sm font-semibold text-gray-500 mb-1">Last claim</p>
+            <p className="text-3xl font-bold text-gray-800">
+              {profile?.lastClaimDate ? dayjs(profile.lastClaimDate).fromNow(true) + ' ago' : '—'}
             </p>
-            <p className="text-xs text-gray-500">
-              Next reward {nextClaimText ? nextClaimText : 'is ready now'}
+            <p className="text-xs text-blue-600 font-medium mt-2">
+              Next: {nextClaimText ? nextClaimText : 'Ready now'}
             </p>
           </div>
         </div>
       </header>
 
       {error && (
-        <div className="ocean-card border-red-500/40 bg-red-50/80 text-red-600">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center gap-2">
           {error}
         </div>
       )}
 
       {success && (
-        <div className="ocean-card border-green-500/40 bg-green-100/70 text-green-700">
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl flex items-center gap-2">
+          <CheckCircle2 size={18} />
           {success}
         </div>
       )}
 
-      <section className="ocean-card space-y-4">
-        <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-          🎁 Collect your daily fishing XP
-        </h2>
-        <p className="text-sm text-gray-600">
+      <section className="bg-white/80 backdrop-blur border border-blue-100 rounded-2xl p-6 shadow-sm space-y-5">
+        <div className="flex items-center gap-2 text-blue-900">
+          <Gift size={24} className="text-blue-500" />
+          <h2 className="text-xl font-bold">Collect your daily fishing XP</h2>
+        </div>
+        <p className="text-gray-600">
           Keep your streak alive by claiming within 24 hours. On day seven the multiplier reaches 2x.
         </p>
 
         <button
           type="button"
-          className="primary-button justify-center text-lg py-3"
+          className="w-full md:w-auto primary-button justify-center text-lg py-3 px-8 rounded-xl font-bold transition-transform hover:scale-[1.02]"
           onClick={handleClaim}
           disabled={!claimState.canClaim || isClaiming}
         >
-          {isClaiming ? 'Reeling in rewards...' : claimState.canClaim ? '🎣 Claim XP now' : 'On cooldown'}
+          {isClaiming ? 'Reeling in rewards...' : claimState.canClaim ? 'Claim XP Now' : 'On Cooldown'}
         </button>
 
         {!claimState.canClaim && nextClaimText && (
-          <p className="text-xs text-gray-500 text-center">
-            Next claim {nextClaimText}.
+          <p className="text-sm text-gray-500 flex items-center gap-1.5">
+            <Clock size={16} /> Next claim available {nextClaimText}.
           </p>
         )}
       </section>
 
-      <section className="ocean-card space-y-4">
-        <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-          📅 Seven-day streak calendar
-        </h2>
-        <div className="grid grid-cols-1 grid-md-3 gap-3">
+      <section className="bg-white/80 backdrop-blur border border-blue-100 rounded-2xl p-6 shadow-sm space-y-6">
+        <div className="flex items-center gap-2 text-blue-900">
+          <Calendar size={24} className="text-blue-500" />
+          <h2 className="text-xl font-bold">Seven-day streak calendar</h2>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
           {streakRewards.map((reward) => {
             const isCompleted = streakPosition >= reward.day;
             const isActive = streakPosition === reward.day && claimState.canClaim;
             return (
               <div
                 key={reward.day}
-                className={`ocean-card border p-4 space-y-2 ${
+                className={`flex flex-col bg-white border rounded-xl p-4 transition-all ${
                   isActive
-                    ? 'border-blue-400 shadow-lg'
+                    ? 'border-blue-400 ring-2 ring-blue-100 shadow-md transform -translate-y-1'
                     : isCompleted
-                    ? 'border-green-300'
-                    : 'border-transparent'
+                    ? 'border-green-200 bg-green-50/30'
+                    : 'border-gray-100 opacity-70'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-gray-700">Day {reward.day}</span>
-                  <span className="chip">{reward.multiplier.toFixed(1)}x</span>
+                <div className="flex items-center justify-between mb-3">
+                  <span className={`text-sm font-bold ${isCompleted ? 'text-green-700' : 'text-gray-700'}`}>Day {reward.day}</span>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${isActive ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
+                    {reward.multiplier.toFixed(1)}x
+                  </span>
                 </div>
-                <p className="text-xs text-gray-500">{reward.label}</p>
-                <div className="flex items-center gap-2 text-sm">
+                <p className="text-xs text-gray-500 font-medium leading-tight mb-4 flex-grow">{reward.label}</p>
+                <div className="flex items-center gap-1.5 text-xs font-semibold">
                   {isCompleted ? (
-                    <span role="img" aria-label="completed">
-                      ✅
-                    </span>
+                    <>
+                      <CheckCircle2 size={14} className="text-green-500" />
+                      <span className="text-green-600">Completed</span>
+                    </>
                   ) : (
-                    <span role="img" aria-label="pending">
-                      ⏳
-                    </span>
+                    <>
+                      <Clock size={14} className="text-gray-400" />
+                      <span className="text-gray-500">Pending</span>
+                    </>
                   )}
-                  <span className="text-gray-600">{isCompleted ? 'Completed' : 'Pending'}</span>
                 </div>
               </div>
             );

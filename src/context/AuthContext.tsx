@@ -19,6 +19,7 @@ export type AuthUser = {
     bio?: string;
     avatar?: string;
     pfpUrl?: string;
+    displayName?: string;
   };
   createdAt?: string;
   updatedAt?: string;

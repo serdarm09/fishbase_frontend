@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { gameApi, nftApi } from '@/services/api';
 import { StatCard } from '@/components/dashboard/StatCard';
 import type { UserProfile, OwnedBoat, BoostInfo } from '@/types';
+import BoatSVG, { boatLabel, type BoatTypeName } from '@/components/boats/BoatSVG';
 
 const numberFormatter = new Intl.NumberFormat('en-US');
 
@@ -32,6 +33,13 @@ export default function ProfilePage() {
   const [userBoats, setUserBoats] = useState<OwnedBoat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
+  const [profileForm, setProfileForm] = useState({
+    username: '',
+    displayName: '',
+  });
 
   useEffect(() => {
     if (!token) return;
@@ -87,12 +95,87 @@ export default function ProfilePage() {
     };
   }, [token, updateUser]);
 
+  useEffect(() => {
+    if (!profile) return;
+
+    setProfileForm({
+      username: profile.username || '',
+      displayName: profile.profileData?.displayName || '',
+    });
+  }, [profile]);
+
   const activeBoat = useMemo(() => {
     if (profile?.activeBoat) return profile.activeBoat;
     return userBoats.find((boat) => boat.isActive);
   }, [profile, userBoats]);
 
   const avatarUrl = profile?.profileData?.avatar || profile?.profileData?.pfpUrl || '';
+
+  const handleStartProfileEdit = () => {
+    if (!profile) return;
+
+    setProfileSaveError(null);
+    setProfileForm({
+      username: profile.username || '',
+      displayName: profile.profileData?.displayName || '',
+    });
+    setIsEditingProfile(true);
+  };
+
+  const handleCancelProfileEdit = () => {
+    setProfileSaveError(null);
+    setIsEditingProfile(false);
+    if (profile) {
+      setProfileForm({
+        username: profile.username || '',
+        displayName: profile.profileData?.displayName || '',
+      });
+    }
+  };
+
+  const handleProfileSave = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!token || !profile) return;
+
+    const username = profileForm.username.trim();
+    const displayName = profileForm.displayName.trim();
+
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+      setProfileSaveError('Kullanıcı adı 3-20 karakter olmalı; sadece harf, sayı ve alt çizgi kullan.');
+      return;
+    }
+
+    try {
+      setIsSavingProfile(true);
+      setProfileSaveError(null);
+
+      const response = await gameApi.updateProfile(token, {
+        username,
+        displayName,
+      });
+      const updatedProfile = response.profile as UserProfile;
+
+      setProfile(updatedProfile);
+      updateUser((prev) => ({
+        ...prev,
+        username: updatedProfile.username,
+        profileData: {
+          ...prev.profileData,
+          ...updatedProfile.profileData,
+        },
+      }));
+      setIsEditingProfile(false);
+    } catch (err: any) {
+      const message = err.message || 'Profil güncellenemedi';
+      setProfileSaveError(
+        message.toLowerCase().includes('already taken')
+          ? 'Bu kullanıcı adı alınmış. Başka bir kullanıcı adı seç.'
+          : message
+      );
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
 
   const levelProgress = useMemo(() => {
     if (!profile) return 0;
@@ -152,20 +235,77 @@ export default function ProfilePage() {
                 </span>
               )}
             </div>
-            <div>
-              <h1 className="page-heading">
-                {profile.username}
-                <span className="badge">Level {profile.level}</span>
-              </h1>
-              {profile.profileData?.displayName && (
-                <p className="text-sm text-gray-500">{profile.profileData.displayName}</p>
+            <div className="profile-identity">
+              {isEditingProfile ? (
+                <form className="profile-edit-form" onSubmit={handleProfileSave}>
+                  <label className="profile-field">
+                    <span>Kullanıcı adı</span>
+                    <input
+                      value={profileForm.username}
+                      onChange={(event) =>
+                        setProfileForm((current) => ({
+                          ...current,
+                          username: event.target.value,
+                        }))
+                      }
+                      className="profile-input"
+                      maxLength={20}
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+                  </label>
+                  <label className="profile-field">
+                    <span>Görünen ad</span>
+                    <input
+                      value={profileForm.displayName}
+                      onChange={(event) =>
+                        setProfileForm((current) => ({
+                          ...current,
+                          displayName: event.target.value,
+                        }))
+                      }
+                      className="profile-input"
+                      maxLength={32}
+                      autoComplete="name"
+                    />
+                  </label>
+                  {profileSaveError && <p className="profile-error">{profileSaveError}</p>}
+                  <div className="profile-edit-actions">
+                    <button type="submit" className="primary-button profile-action-button" disabled={isSavingProfile}>
+                      {isSavingProfile ? 'Kaydediliyor...' : 'Kaydet'}
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary-button profile-action-button"
+                      onClick={handleCancelProfileEdit}
+                      disabled={isSavingProfile}
+                    >
+                      Vazgeç
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <>
+                  <div className="profile-heading-row">
+                    <h1 className="page-heading">
+                      {profile.username}
+                      <span className="badge">Level {profile.level}</span>
+                    </h1>
+                    <button className="secondary-button profile-edit-button" onClick={handleStartProfileEdit}>
+                      Düzenle
+                    </button>
+                  </div>
+                  {profile.profileData?.displayName && (
+                    <p className="text-sm text-gray-500">{profile.profileData.displayName}</p>
+                  )}
+                  {user?.farcasterFid && (
+                    <p className="page-subtitle">Linked Farcaster FID: {user.farcasterFid}</p>
+                  )}
+                  <p className="text-sm text-gray-500 mt-1">
+                    Wallet: <span className="font-semibold">{profile.walletAddress}</span>
+                  </p>
+                </>
               )}
-              {user?.farcasterFid && (
-                <p className="page-subtitle">Linked Farcaster FID: {user.farcasterFid}</p>
-              )}
-              <p className="text-sm text-gray-500 mt-1">
-                Wallet: <span className="font-semibold">{profile.walletAddress}</span>
-              </p>
             </div>
           </div>
 
@@ -302,23 +442,15 @@ export default function ProfilePage() {
                   boat.isActive ? 'border-blue-200 shadow-lg' : 'border-transparent'
                 }`}
               >
-                <div className="flex items-start justify-between">
-                  <div>
+                <div className="flex items-start justify-between gap-3">
+                  <div style={{ flex: 1 }}>
                     <h3 className="font-semibold text-gray-700 flex items-center gap-2">
-                      {boat.boatType}
+                      {boatLabel(boat.boatType as string)}
                       {boat.isActive && <span className="badge">Active</span>}
                     </h3>
                     <p className="text-xs text-gray-500">Token #{boat.tokenId}</p>
                   </div>
-                  <span className="text-2xl" aria-hidden="true">
-                    {boat.boatType === 'MEGASHIP'
-                      ? '🛳️'
-                      : boat.boatType === 'TRAWLER'
-                      ? '🚢'
-                      : boat.boatType === 'YACHT'
-                      ? '🛥️'
-                      : '⛵'}
-                  </span>
+                  <BoatSVG type={(boat.boatType as string).toUpperCase() as BoatTypeName} size={44} />
                 </div>
                 <div className="mt-3 text-sm text-gray-600 space-y-1">
                   <p>Daily XP: {boat.dailyXp}</p>
@@ -360,44 +492,7 @@ export default function ProfilePage() {
         )}
       </section>
 
-      {/* Stats overview */}
-      {stats && (
-        <section className="ocean-card">
-          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-            📊 Performance Snapshot
-          </h2>
-          <div className="grid grid-cols-1 grid-md-2 grid-xl-4 gap-3">
-            <StatCard
-              icon="🏅"
-              label="Total XP"
-              value={numberFormatter.format(stats.totalXp || 0)}
-              helper="XP accumulated by your captain"
-              accent="blue"
-            />
-            <StatCard
-              icon="⛴️"
-              label="Boats Owned"
-              value={`${stats.boatsOwned || 0}`}
-              helper="Total NFT boats in your fleet"
-              accent="green"
-            />
-            <StatCard
-              icon="🧭"
-              label="Map Moves"
-              value={`${stats.timesMoved || 0} times`}
-              helper="How often you relocated your boat"
-              accent="purple"
-            />
-            <StatCard
-              icon="⚡"
-              label="Boat XP Earned"
-              value={numberFormatter.format(stats.totalXpEarned || 0)}
-              helper="Total XP generated by your boats"
-              accent="sun"
-            />
-          </div>
-        </section>
-      )}
+
     </section>
   );
 }
