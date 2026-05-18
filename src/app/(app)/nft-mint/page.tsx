@@ -173,6 +173,13 @@ export default function NftMintPage() {
 
       if (payment === 'ETH') {
         const ethPrice = parseEther(priceConfig.eth);
+        const balance = await provider.getBalance(await signer.getAddress());
+        
+        if (balance < ethPrice) {
+          const formattedBalance = (Number(balance) / 1e18).toFixed(4);
+          throw new Error(`Insufficient funds! This boat costs ${priceConfig.eth} ETH but you only have ${formattedBalance} ETH. Please add more ETH to your Base wallet or mint a cheaper boat.`);
+        }
+
         setSuccess('Confirming ETH transaction...');
         tx = await boatNftContract.mintBoat(typeId, { value: ethPrice });
       } else {
@@ -351,9 +358,8 @@ export default function NftMintPage() {
                 const price = priceLabel(bKey);
                 const isFree = BOAT_USD[bKey]?.free;
                 
-                // Disable Dinghy minting here if they already have a boat, but contract enforces it too.
                 const hasBoats = boats.length > 0;
-                const disableMint = isFree && hasBoats;
+                const disableMint = false; // Everyone can mint now
 
                 return (
                   <div key={boat.type} style={{ background: color.bg, border: `1px solid ${color.border}`, borderRadius: 16, padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
