@@ -424,7 +424,7 @@ export default function MapPage() {
           <div className="empty-state text-sm">
             No active NFT boat.{' '}
             <Link href="/nft-mint" style={{ color: 'var(--ocean-500)', fontWeight: 600 }}>
-              Mint your first vessel ->
+              Mint your first vessel →
             </Link>
           </div>
         )}

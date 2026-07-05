@@ -296,13 +296,13 @@ export default function ProfilePage() {
                     </button>
                   </div>
                   {profile.profileData?.displayName && (
-                    <p className="text-sm text-gray-500">{profile.profileData.displayName}</p>
+                    <p className="text-base text-sky-300 font-semibold mt-1">{profile.profileData.displayName}</p>
                   )}
                   {user?.farcasterFid && (
                     <p className="page-subtitle">Linked Farcaster FID: {user.farcasterFid}</p>
                   )}
-                  <p className="text-sm text-gray-500 mt-1">
-                    Wallet: <span className="font-semibold">{profile.walletAddress}</span>
+                  <p className="text-sm text-slate-300 mt-2">
+                    Wallet: <span className="font-semibold text-white">{profile.walletAddress}</span>
                   </p>
                 </>
               )}

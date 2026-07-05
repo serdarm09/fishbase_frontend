@@ -1,57 +1,99 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { BrowserProvider } from 'ethers';
 import { authApi } from '@/services/api';
 
-/* ── Page cards shown in the scroll section ─────────────────────── */
-const PAGES = [
+/* ── 10 Gallery Images & Game Details (in order) ─────────────────── */
+const GALLERY_ITEMS = [
   {
-    href: '/map',
-    emoji: '🗺️',
-    bg: 'rgba(31, 122, 224, 0.18)',
+    url: 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260629_104530_521b2f85-c0f3-4d0e-9704-b578315b4cb9.png&w=1920&q=85',
+    tag: 'EXPLORE',
     title: 'Live Sea Map',
     desc: 'Place your boat on the 100×100 live grid and earn daily XP with every move.',
-    tag: 'Explore',
   },
   {
-    href: '/daily-claim',
-    emoji: '🎁',
-    bg: 'rgba(251, 191, 36, 0.18)',
+    url: 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260629_103711_76ccdb8b-5043-4f47-9c54-4379713393ea.png&w=1920&q=85',
+    tag: 'EARN',
     title: 'Daily Reward Deck',
     desc: 'Claim streak XP every 24 h. Hit day 7 and unlock the 2× Golden Tide multiplier.',
-    tag: 'Earn',
   },
   {
-    href: '/nft-mint',
-    emoji: '⛵',
-    bg: 'rgba(139, 92, 246, 0.18)',
+    url: 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260629_103728_394f6a1b-85e2-4386-a4f6-408472a0a5b7.png&w=1920&q=85',
+    tag: 'COLLECT',
     title: 'NFT Fleet Hangar',
     desc: 'Mint Dinghies to Mega Ships — stronger vessels earn up to 200 XP per day.',
-    tag: 'Collect',
   },
   {
-    href: '/leaderboard',
-    emoji: '🏆',
-    bg: 'rgba(20, 184, 166, 0.18)',
+    url: 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260629_103739_86743e0e-16a7-4bee-bf38-dd67985344dc.png&w=1920&q=85',
+    tag: 'COMPETE',
     title: 'Captain Leaderboards',
     desc: 'XP rankings, streak champions, and fishing mini-game timing scores — all live.',
-    tag: 'Compete',
   },
   {
-    href: '/profile',
-    emoji: '👤',
-    bg: 'rgba(249, 115, 22, 0.18)',
+    url: 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260629_103748_b2215dc8-a3a7-470d-b19a-5b87fa7d0c37.png&w=1920&q=85',
+    tag: 'PROFILE',
     title: 'Captain Profile',
     desc: 'View your fleet, total XP, streak history and active boost multipliers.',
-    tag: 'Profile',
+  },
+  {
+    url: 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260629_103758_e919ce72-5c9d-4b87-9be6-d7647b34825c.png&w=1920&q=85',
+    tag: 'BOOST',
+    title: 'Golden Tide Multiplier',
+    desc: 'Maintain consecutive daily claims to multiply your ocean rewards up to 5×.',
+  },
+  {
+    url: 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260629_103808_013583d0-3386-4547-9832-37c7d8edb3ac.png&w=1920&q=85',
+    tag: 'VESSEL',
+    title: 'Deepwater Trawlers',
+    desc: 'Heavy-duty commercial vessels built for conquering high-yield deep ocean coordinates.',
+  },
+  {
+    url: 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260629_103937_a0c49d0a-33eb-4ead-aea6-c1baf241acbc.png&w=1920&q=85',
+    tag: 'TACTICS',
+    title: '100×100 Grid Strategy',
+    desc: 'Navigate your vessel to tactical open waters. Every move triggers real-time XP accumulation.',
+  },
+  {
+    url: 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260629_103956_d18ed8fd-7b6f-4b86-91f9-20010fe38670.png&w=1920&q=85',
+    tag: 'ONCHAIN',
+    title: 'Base Mainnet Built',
+    desc: 'Fully decentralized game logic, instant transactions, and non-custodial ownership on Base.',
+  },
+  {
+    url: 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260629_104034_ba5a9963-87ff-4008-a545-6bd686c088b5.png&w=1920&q=85',
+    tag: 'ARCADE',
+    title: 'Fishing Mini-Game',
+    desc: 'Test your reflexes and timing in fast-paced fishing challenges to earn instant bonus XP.',
   },
 ];
 
-/* ── Wallet login ────────────────────────────────────────────────── */
+/* ── Scattered Grid Layout Algorithm ─────────────────────────────── */
+function buildLayout(count: number, cols: number): number[][] {
+  const rows: number[][] = [];
+  let itemIdx = 0;
+  let r = 0;
+
+  while (itemIdx < count) {
+    const row = new Array(cols).fill(-1);
+    const a = (r * 2 + (r % 2)) % cols;
+    row[a] = itemIdx++;
+
+    if (r % 3 === 0 && itemIdx < count) {
+      let b = (a + 2) % cols;
+      if (b === a) b = (a + 1) % cols;
+      row[b] = itemIdx++;
+    }
+    rows.push(row);
+    r++;
+  }
+  return rows;
+}
+
+/* ── Wallet login hook ───────────────────────────────────────────── */
 type EthereumProvider = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
 };
@@ -111,23 +153,411 @@ function useHeroLogin() {
   return { login, status, error, busy };
 }
 
-/* ── Scroll-triggered visibility hook ───────────────────────────── */
-function useInView(threshold = 0.15) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
+/* ── Scroll-Driven Black Panel Gallery Section ───────────────────── */
+function ScrollGallerySection({
+  maxScroll,
+  onMaxScrollChange,
+  onLogin,
+  busy,
+  heroRef,
+}: {
+  maxScroll: number;
+  onMaxScrollChange: (val: number) => void;
+  onLogin: () => void;
+  busy: boolean;
+  heroRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const cellRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const outroInfoRef = useRef<HTMLDivElement>(null);
+  const outroBtnRef = useRef<HTMLButtonElement>(null);
+  const outroFooterRef = useRef<HTMLDivElement>(null);
+  const circleSymbolRef = useRef<HTMLSpanElement>(null);
+  const [cols, setCols] = useState(4);
+  const lastSymbolUpdateRef = useRef(0);
 
+  // Measure columns and wrapper height
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect(); } },
-      { threshold }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [threshold]);
+    const measure = () => {
+      const w = window.innerWidth;
+      const c = w < 640 ? 2 : w < 1024 ? 3 : 4;
+      setCols(c);
+      if (wrapperRef.current) {
+        const h = wrapperRef.current.scrollHeight;
+        const vh = window.innerHeight || 800;
+        const calcMax = Math.max(1000, h - vh);
+        onMaxScrollChange(calcMax);
+      }
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    const timer = setTimeout(measure, 500);
+    const timer2 = setTimeout(measure, 1500);
+    return () => {
+      window.removeEventListener('resize', measure);
+      clearTimeout(timer);
+      clearTimeout(timer2);
+    };
+  }, [cols, onMaxScrollChange]);
 
-  return { ref, visible };
+  // RAF scroll animation loop
+  useEffect(() => {
+    let rafId: number;
+    const symbols = ['8', '$', '^^', '%', '/', '🌊', '⚓', '⚡', '⛵', '🔥'];
+
+    const update = () => {
+      const scrollY = window.scrollY || window.pageYOffset || 0;
+      const vh = window.innerHeight || 800;
+      const ms = maxScroll;
+
+      // Hide Hero video when covered by Black Panel to optimize rendering
+      if (heroRef.current) {
+        heroRef.current.style.visibility = scrollY > vh ? 'hidden' : 'visible';
+      }
+
+      // Phase 1: Panel slide up from bottom
+      const panelTranslateY = Math.max(0, vh - scrollY);
+      if (panelRef.current) {
+        panelRef.current.style.transform = `translate3d(0, ${panelTranslateY}px, 0)`;
+      }
+
+      // Phase 2: Inner wrapper scroll
+      const phase2Scroll = Math.max(0, scrollY - vh);
+      const wrapperTranslateY = -Math.min(ms, phase2Scroll);
+      if (innerRef.current) {
+        innerRef.current.style.transform = `translate3d(0, ${wrapperTranslateY}px, 0)`;
+      }
+
+      // Card scale animations (Enter / Exit scaling based on viewport position)
+      for (let i = 0; i < GALLERY_ITEMS.length; i++) {
+        const cell = cellRefs.current[i];
+        const card = cardRefs.current[i];
+        if (cell && card) {
+          const rect = cell.getBoundingClientRect();
+          const enter = Math.min(1, (vh - rect.top) / (vh * 0.6));
+          const exit = Math.min(1, rect.bottom / (vh * 0.4));
+          let scale = Math.min(enter, exit);
+          if (rect.bottom <= 0 || rect.top >= vh) scale = 0;
+          scale = Math.max(0, Math.min(1, scale));
+          card.style.transform = `scale(${scale.toFixed(3)})`;
+        }
+      }
+
+      // Outro Phase (scrollY > vh + maxScroll)
+      const outroStart = vh + ms;
+      const outroProgress = Math.max(0, Math.min(1, (scrollY - outroStart) / Math.max(100, vh - 100)));
+
+      if (overlayRef.current) overlayRef.current.style.opacity = outroProgress.toFixed(3);
+      if (outroInfoRef.current) {
+        outroInfoRef.current.style.opacity = outroProgress.toFixed(3);
+        outroInfoRef.current.style.transform = `translate3d(0, ${((1 - outroProgress) * 80).toFixed(1)}px, 0)`;
+      }
+      if (outroBtnRef.current) {
+        outroBtnRef.current.style.transform = `scale(${outroProgress.toFixed(3)})`;
+        outroBtnRef.current.style.pointerEvents = outroProgress > 0.7 ? 'auto' : 'none';
+      }
+      if (outroFooterRef.current) {
+        outroFooterRef.current.style.opacity = outroProgress.toFixed(3);
+      }
+
+      // Random symbol ticker on scroll
+      const now = performance.now();
+      if (scrollY > vh && now - lastSymbolUpdateRef.current > 80) {
+        lastSymbolUpdateRef.current = now;
+        if (circleSymbolRef.current) {
+          const rand = symbols[Math.floor(Math.random() * symbols.length)];
+          circleSymbolRef.current.textContent = rand;
+        }
+      }
+
+      rafId = requestAnimationFrame(update);
+    };
+
+    rafId = requestAnimationFrame(update);
+    return () => cancelAnimationFrame(rafId);
+  }, [maxScroll, heroRef]);
+
+  const layoutRows = useMemo(() => buildLayout(GALLERY_ITEMS.length, cols), [cols]);
+
+  return (
+    <div
+      ref={panelRef}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: '#000000',
+        zIndex: 10,
+        transform: 'translate3d(0, 100vh, 0)',
+        willChange: 'transform',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Inner wrapper */}
+      <div
+        ref={wrapperRef}
+        style={{
+          width: '100%',
+          paddingTop: 'min(350px, 35vh)',
+          paddingBottom: 'min(450px, 45vh)',
+        }}
+      >
+        <div
+          ref={innerRef}
+          style={{
+            width: '100%',
+            maxWidth: '1440px',
+            margin: '0 auto',
+            padding: '0 1.5rem',
+            willChange: 'transform',
+          }}
+        >
+          {layoutRows.map((row, rIdx) => (
+            <div
+              key={rIdx}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+                gap: '2rem',
+                marginBottom: '2.5rem',
+              }}
+            >
+              {row.map((itemIdx, cIdx) => {
+                if (itemIdx === -1 || !GALLERY_ITEMS[itemIdx]) {
+                  return <div key={cIdx} style={{ aspectRatio: '2/3' }} />;
+                }
+                const item = GALLERY_ITEMS[itemIdx];
+                const isLeftHalf = cIdx < cols / 2;
+                return (
+                  <div
+                    key={cIdx}
+                    ref={(el) => { cellRefs.current[itemIdx] = el; }}
+                    style={{ aspectRatio: '2/3', width: '100%', position: 'relative' }}
+                  >
+                    <div
+                      ref={(el) => { cardRefs.current[itemIdx] = el; }}
+                      className="bp-card"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        borderRadius: '16px',
+                        backgroundColor: '#0a1622',
+                        border: '1px solid rgba(255, 255, 255, 0.12)',
+                        boxShadow: '0 20px 40px rgba(0,0,0,0.7)',
+                        transformOrigin: isLeftHalf ? 'right bottom' : 'left bottom',
+                        transform: 'scale(0)',
+                      }}
+                    >
+                      <img
+                        src={item.url}
+                        alt={item.title}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          display: 'block',
+                          transition: 'transform 0.5s ease',
+                        }}
+                      />
+                      {/* Gradient overlay + copy */}
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          background: 'linear-gradient(0deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.35) 50%, transparent 100%)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'flex-end',
+                          padding: '1.25rem',
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontFamily: '"Inter Tight", sans-serif',
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            letterSpacing: '0.14em',
+                            color: '#4AAAF7',
+                            textTransform: 'uppercase',
+                            marginBottom: '0.3rem',
+                          }}
+                        >
+                          {item.tag}
+                        </span>
+                        <h3
+                          style={{
+                            fontFamily: 'var(--font-display, "Instrument Serif", serif)',
+                            fontSize: 'clamp(1.25rem, 2.2vw, 1.65rem)',
+                            fontWeight: 400,
+                            color: '#ffffff',
+                            margin: '0 0 0.35rem 0',
+                            lineHeight: 1.1,
+                          }}
+                        >
+                          {item.title}
+                        </h3>
+                        <p
+                          style={{
+                            fontFamily: 'var(--font-nunito, Nunito, sans-serif)',
+                            fontSize: '0.8rem',
+                            color: 'rgba(200, 220, 235, 0.8)',
+                            lineHeight: 1.4,
+                            margin: 0,
+                          }}
+                        >
+                          {item.desc}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── 1I. White Overlay ── */}
+      <div
+        ref={overlayRef}
+        id="outro-overlay"
+        style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: '#ffffff',
+          pointerEvents: 'none',
+          zIndex: 12,
+          opacity: 0,
+          transition: 'opacity 0.1s linear',
+        }}
+      />
+
+      {/* ── 1E. Outro Product Info (Bottom Left) ── */}
+      <div
+        ref={outroInfoRef}
+        id="outro-info"
+        style={{
+          position: 'fixed',
+          left: '2.5rem',
+          bottom: '5rem',
+          zIndex: 20,
+          pointerEvents: 'none',
+          mixBlendMode: 'exclusion',
+          opacity: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-start',
+          gap: '1.25rem',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div
+            style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '50%',
+              border: '2.5px solid #ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontFamily: '"Inter Tight", sans-serif',
+              fontWeight: 600,
+              fontSize: '14px',
+              color: '#ffffff',
+            }}
+          >
+            <span ref={circleSymbolRef}>8</span>
+          </div>
+          <div>
+            <p style={{ fontFamily: '"Inter Tight", sans-serif', fontWeight: 600, fontSize: '11px', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#ffffff', margin: 0 }}>
+              ARCHIVE COLLECTION
+            </p>
+            <p style={{ fontFamily: 'var(--font-display, "Instrument Serif", serif)', fontSize: '24px', color: '#ffffff', margin: 0, lineHeight: 1 }}>
+              FISHBASE ONCHAIN
+            </p>
+          </div>
+        </div>
+        <p style={{ fontFamily: '"Inter Tight", sans-serif', fontWeight: 700, fontSize: 'clamp(2.8rem, 5.5vw, 4.8rem)', color: '#ffffff', margin: 0, lineHeight: 0.9, letterSpacing: '-0.04em' }}>
+          FREE DINGHY
+        </p>
+      </div>
+
+      {/* ── 1F. "Join" CTA Button (Bottom Right) ── */}
+      <button
+        ref={outroBtnRef}
+        id="outro-buy"
+        type="button"
+        onClick={onLogin}
+        disabled={busy}
+        style={{
+          position: 'fixed',
+          right: '2.5rem',
+          bottom: '2.5rem',
+          zIndex: 25,
+          mixBlendMode: 'exclusion',
+          backgroundColor: '#ffffff',
+          borderRadius: '1335px',
+          width: 'clamp(220px, 26vw, 340px)',
+          height: 'clamp(90px, 13vw, 160px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transformOrigin: 'right bottom',
+          transform: 'scale(0)',
+          border: 'none',
+          cursor: busy ? 'not-allowed' : 'pointer',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.15)',
+        }}
+      >
+        <span
+          style={{
+            fontFamily: '"Inter Tight", sans-serif',
+            fontWeight: 500,
+            fontSize: 'clamp(36px, 5.5vw, 80px)',
+            letterSpacing: '-0.04em',
+            color: '#ffffff',
+            mixBlendMode: 'exclusion',
+            textTransform: 'lowercase',
+          }}
+        >
+          {busy ? 'connecting...' : 'join'}
+        </span>
+      </button>
+
+      {/* ── 1J. Outro Footer ── */}
+      <div
+        ref={outroFooterRef}
+        id="outro-footer"
+        style={{
+          position: 'fixed',
+          left: '2.5rem',
+          bottom: '1.5rem',
+          right: '2.5rem',
+          zIndex: 20,
+          pointerEvents: 'none',
+          mixBlendMode: 'exclusion',
+          opacity: 0,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          fontFamily: '"Inter Tight", sans-serif',
+          fontWeight: 500,
+          fontSize: '12px',
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+          color: '#ffffff',
+        }}
+      >
+        <span>FISHBASE ® 2026</span>
+        <span>ONCHAIN CAPTAIN FLEET</span>
+      </div>
+    </div>
+  );
 }
 
 /* ═══════════════════════════════════════════════════════════════════ */
@@ -135,10 +565,8 @@ export default function LandingPage() {
   const router   = useRouter();
   const { user } = useAuth();
   const { login, status, error, busy } = useHeroLogin();
-
-  /* Scroll-section visibility */
-  const showcase    = useInView(0.08);
-  const bottomBar   = useInView(0.2);
+  const [maxScroll, setMaxScroll] = useState(3000);
+  const heroRef = useRef<HTMLDivElement>(null);
 
   /* Redirect authenticated users */
   useEffect(() => {
@@ -146,19 +574,34 @@ export default function LandingPage() {
   }, [user, router]);
 
   return (
-    <div style={{ fontFamily: 'var(--font-nunito, Nunito, sans-serif)', background: '#000e1a' }}>
-
+    <div
+      id="scroll-spacer"
+      style={{
+        fontFamily: 'var(--font-nunito, Nunito, sans-serif)',
+        background: '#000e1a',
+        position: 'relative',
+        width: '100%',
+        height: `calc(300vh + ${maxScroll}px)`,
+        userSelect: 'none',
+      }}
+    >
       {/* ══════════════════════════════════════════════════════════
-          HERO — Exactly 100 vh, video fills screen
+          HERO — Fixed during Phase 1 (first 100vh)
       ══════════════════════════════════════════════════════════ */}
       <div
+        ref={heroRef}
         style={{
-          position: 'relative',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
           width: '100%',
-          height: '100vh',          /* exact viewport height */
+          height: '100vh',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
+          zIndex: 1,
         }}
       >
         {/* Fullscreen video */}
@@ -400,134 +843,15 @@ export default function LandingPage() {
       </div>
 
       {/* ══════════════════════════════════════════════════════════
-          BELOW FOLD — Page Showcase  (scroll-triggered)
+          BELOW FOLD — Scroll-Driven Black Panel & Gallery Grid
       ══════════════════════════════════════════════════════════ */}
-      <div
-        ref={showcase.ref}
-        style={{
-          background: 'linear-gradient(180deg, #000e1a 0%, #001220 50%, #000e1a 100%)',
-          padding: '6rem 2rem 7rem',
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
-        {/* Subtle radial glow behind section */}
-        <div aria-hidden="true" style={{
-          position: 'absolute', top: '40%', left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: '70vw', height: '70vw', maxWidth: 800, maxHeight: 800,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(31,122,224,0.06) 0%, transparent 70%)',
-          pointerEvents: 'none',
-        }} />
-
-        <div style={{ maxWidth: '88rem', margin: '0 auto', position: 'relative' }}>
-
-          {/* Divider */}
-          <div className="hero-divider" style={{ marginBottom: '4.5rem' }} />
-
-          {/* Section heading */}
-          <div
-            style={{
-              marginBottom: '3rem',
-              opacity: showcase.visible ? 1 : 0,
-              transform: showcase.visible ? 'translateY(0)' : 'translateY(28px)',
-              transition: 'opacity 0.75s ease, transform 0.75s ease',
-            }}
-          >
-            <p style={{
-              fontSize: '0.72rem', color: 'rgba(155,190,215,0.55)',
-              letterSpacing: '0.12em', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.6rem',
-            }}>
-              Everything in one place
-            </p>
-            <h2 style={{
-              fontFamily: 'var(--font-display,"Instrument Serif",serif)',
-              fontSize: 'clamp(1.8rem, 4vw, 2.9rem)',
-              fontWeight: 400, color: '#fff', margin: 0,
-              letterSpacing: '-0.03em', lineHeight: 1.1,
-            }}>
-              Your full captain dashboard
-            </h2>
-          </div>
-
-          {/* Cards grid */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 210px), 1fr))',
-            gap: '1rem',
-          }}>
-            {PAGES.map((page, i) => (
-              <Link
-                key={page.href}
-                href={page.href}
-                className="page-card"
-                style={{
-                  opacity: showcase.visible ? 1 : 0,
-                  transform: showcase.visible ? 'translateY(0)' : 'translateY(36px)',
-                  transition: `opacity 0.6s ease ${0.1 + i * 0.1}s, transform 0.6s ease ${0.1 + i * 0.1}s`,
-                }}
-              >
-                <div className="page-card-icon" style={{ background: page.bg }}>
-                  {page.emoji}
-                </div>
-                <span style={{ fontSize: '0.68rem', color: 'rgba(155,200,235,0.55)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                  {page.tag}
-                </span>
-                <p className="page-card-title">{page.title}</p>
-                <p className="page-card-desc">{page.desc}</p>
-                <span className="page-card-arrow">Explore <span>→</span></span>
-              </Link>
-            ))}
-          </div>
-
-          {/* Bottom bar */}
-          <div
-            ref={bottomBar.ref}
-            style={{
-              marginTop: '4rem',
-              display: 'flex', flexWrap: 'wrap',
-              gap: '1rem', alignItems: 'center', justifyContent: 'space-between',
-              opacity: bottomBar.visible ? 1 : 0,
-              transform: bottomBar.visible ? 'translateY(0)' : 'translateY(20px)',
-              transition: 'opacity 0.65s ease 0.2s, transform 0.65s ease 0.2s',
-            }}
-          >
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
-              {[
-                { icon: '🔵', text: 'Built on Base' },
-                { icon: '🔒', text: 'Non-custodial' },
-                { icon: '⚡', text: 'Instant XP' },
-                { icon: '🌊', text: '100×100 Live Map' },
-              ].map(({ icon, text }) => (
-                <span key={text} style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-                  fontSize: '0.78rem', color: 'rgba(175,200,218,0.6)', fontWeight: 600,
-                }}>
-                  {icon} {text}
-                </span>
-              ))}
-            </div>
-            <button
-              type="button" onClick={login} disabled={busy}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-                fontSize: '0.85rem', color: '#fff',
-                background: 'linear-gradient(135deg, rgba(74,170,247,0.22), rgba(31,122,224,0.18))',
-                border: '1px solid rgba(74,170,247,0.3)', borderRadius: 999,
-                padding: '0.6rem 1.4rem',
-                cursor: busy ? 'not-allowed' : 'pointer',
-                fontWeight: 600, opacity: busy ? 0.6 : 1,
-                transition: 'transform 0.2s ease',
-              }}
-              onMouseEnter={(e) => { if (!busy) (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.04)'; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'; }}
-            >
-              ⚓ {busy ? 'Connecting…' : 'Join as Captain'}
-            </button>
-          </div>
-        </div>
-      </div>
+      <ScrollGallerySection
+        maxScroll={maxScroll}
+        onMaxScrollChange={setMaxScroll}
+        onLogin={login}
+        busy={busy}
+        heroRef={heroRef}
+      />
     </div>
   );
 }

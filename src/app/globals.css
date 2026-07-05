@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Fredoka+One:wght@400&family=Nunito:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fredoka+One:wght@400&family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@400;500;600;700&family=Nunito:wght@300;400;500;600;700&display=swap');
 
 /* ---------------------------------------------------------------------
  * Temel Ayarlar
@@ -390,9 +390,9 @@ body::after {
 
 .profile-input {
   width: 100%;
-  border: 1px solid rgba(31, 122, 224, 0.22);
-  background: rgba(255, 255, 255, 0.94);
-  color: var(--text-primary);
+  border: 1px solid rgba(100, 160, 230, 0.35);
+  background: rgba(10, 22, 38, 0.85);
+  color: #ffffff;
   border-radius: var(--rounded-sm);
   padding: 0.72rem 0.85rem;
   font: inherit;
@@ -990,11 +990,13 @@ body::after {
 
 .empty-state {
   text-align: center;
-  padding: 2rem 1.5rem;
+  padding: 2.5rem 1.5rem;
   border-radius: var(--rounded-lg);
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px dashed rgba(31, 122, 224, 0.25);
-  color: var(--text-secondary);
+  background: rgba(15, 30, 50, 0.65);
+  border: 1px dashed rgba(100, 160, 230, 0.35);
+  color: rgba(220, 235, 250, 0.9);
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
 /* =====================================================================
@@ -1719,4 +1721,15 @@ body::after {
   box-shadow: 0 16px 42px rgba(31, 122, 224, 0.55);
 }
 .btn-hero-connect:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ── Scroll Gallery Card (prmpt archive style) ───────────────────── */
+.bp-card {
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bp-card {
+    will-change: auto;
+  }
+}
 
