@@ -173,6 +173,8 @@ export interface ContractAddresses {
   fishToken: string;
   boatNFT: string;
   gameController: string;
+  boostNFT?: string;
+  usdc?: string;
 }
 
 // Game Types

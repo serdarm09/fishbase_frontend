@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Nunito } from "next/font/google";
+import { Nunito, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { ClientProviders } from "./ClientProviders";
 
@@ -7,6 +7,13 @@ const nunito = Nunito({
   subsets: ["latin"],
   variable: "--font-nunito",
   weight: ["300", "400", "500", "600", "700", "800"],
+});
+
+const instrumentSerif = Instrument_Serif({
+  subsets: ["latin"],
+  variable: "--font-display",
+  weight: "400",
+  style: ["normal", "italic"],
 });
 
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://fishbase.app";
@@ -60,7 +67,7 @@ export default function RootLayout({
       <head>
         <meta name="base:app_id" content={baseAppId} />
       </head>
-      <body className={`${nunito.variable} app-shell antialiased`}>
+      <body className={`${nunito.variable} ${instrumentSerif.variable} app-shell antialiased`}>
         <ClientProviders>{children}</ClientProviders>
       </body>
     </html>

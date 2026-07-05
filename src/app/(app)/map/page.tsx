@@ -1,16 +1,17 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BrowserProvider } from 'ethers';
+import { BrowserProvider, Contract, parseEther } from 'ethers';
 import { useAuth } from '@/context/AuthContext';
 import GameMap from '@/components/GameMap';
 import { gameApi } from '@/services/api';
+import config from '@/lib/config';
 import type { BoatPlacement, BoatType, BoostInfo } from '@/types';
 import BoatSVG, { BOAT_XP, boatLabel, type BoatTypeName } from '@/components/boats/BoatSVG';
 import { Zap, RefreshCw, Gift, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 
-// ─── helpers ────────────────────────────────────────────────────────────────
+// Helpers
 
 type MapBoatResponse = {
   id: string;
@@ -32,6 +33,18 @@ type EthereumProvider = {
 const getEthereum = () =>
   (window as typeof window & { ethereum?: EthereumProvider }).ethereum;
 
+const GAME_CONTROLLER_ADDRESS = config.blockchain.contracts.gameController;
+const GAME_CONTROLLER_ABI = [
+  'function registerPlayer() external',
+  'function isRegistered(address player) view returns (bool)',
+  'function placeBoat(uint256 x, uint256 y) external payable',
+  'function moveBoat(uint256 newX, uint256 newY) external payable',
+  'function claimDaily() external',
+];
+
+const isConfiguredAddress = (address?: string) =>
+  Boolean(address && !/^0x0{40}$/i.test(address));
+
 const convertBoat = (b: MapBoatResponse): BoatPlacement => ({
   id:            b.id,
   owner:         b.owner,
@@ -49,17 +62,17 @@ const convertBoat = (b: MapBoatResponse): BoatPlacement => ({
 const secsUntil = (iso: string) =>
   Math.max(0, Math.floor((new Date(iso).getTime() - Date.now()) / 1000));
 
-/** Accumulated XP fraction (0‒1) based on seconds elapsed since lastClaimDate. */
+/** Accumulated XP fraction (0-1) based on seconds elapsed since lastClaimDate. */
 const accruedFraction = (lastClaimIso?: string) => {
   if (!lastClaimIso) return 0;
   const elapsed = (Date.now() - new Date(lastClaimIso).getTime()) / 1000;
   return Math.min(1, elapsed / 86400); // 86400 s = 24 h
 };
 
-// ─── component ──────────────────────────────────────────────────────────────
+// Component
 
 export default function MapPage() {
-  const { token, user } = useAuth();
+  const { token } = useAuth();
 
   const [boats, setBoats]           = useState<BoatPlacement[]>([]);
   const [playerBoat, setPlayerBoat] = useState<BoatPlacement | null>(null);
@@ -90,7 +103,7 @@ export default function MapPage() {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
-  // ── Data fetch ───────────────────────────────────────────────────────────
+  // Data fetch
 
   const fetchMap = useCallback(async () => {
     if (!token) return;
@@ -161,11 +174,14 @@ export default function MapPage() {
 
   useEffect(() => { fetchMap(); }, [fetchMap]);
 
-  // ── Placement ────────────────────────────────────────────────────────────
+  // Placement
 
-  const sendPlacementTransaction = async () => {
+  const getGameController = async () => {
     const ethereum = getEthereum();
     if (!ethereum) throw new Error('Open FishBase in Base App or a wallet browser.');
+    if (!isConfiguredAddress(GAME_CONTROLLER_ADDRESS)) {
+      throw new Error('Game Controller contract address is missing.');
+    }
 
     try {
       await ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x2105' }] });
@@ -174,8 +190,36 @@ export default function MapPage() {
     const provider = new BrowserProvider(ethereum);
     await provider.send('eth_requestAccounts', []);
     const signer = await provider.getSigner();
-    const tx = await signer.sendTransaction({ to: await signer.getAddress(), value: 0 });
-    return tx.hash;
+    const signerAddress = await signer.getAddress();
+    const contract = new Contract(GAME_CONTROLLER_ADDRESS, GAME_CONTROLLER_ABI, signer);
+    return { contract, signerAddress };
+  };
+
+  const ensureRegistered = async (contract: Contract, signerAddress: string) => {
+    const isRegistered = await contract.isRegistered(signerAddress);
+    if (isRegistered) return;
+
+    setSuccessMessage('Registering player onchain...');
+    const tx = await contract.registerPlayer();
+    await tx.wait();
+  };
+
+  const sendPlacementTransaction = async (x: number, y: number, isMove: boolean) => {
+    const { contract, signerAddress } = await getGameController();
+    await ensureRegistered(contract, signerAddress);
+
+    const tx = isMove
+      ? await contract.moveBoat(x, y, { value: parseEther(config.game.placementFee) })
+      : await contract.placeBoat(x, y, { value: parseEther(config.game.placementFee) });
+    const receipt = await tx.wait();
+    return receipt?.hash || tx.hash;
+  };
+
+  const sendClaimTransaction = async () => {
+    const { contract } = await getGameController();
+    const tx = await contract.claimDaily();
+    const receipt = await tx.wait();
+    return receipt?.hash || tx.hash;
   };
 
   const handlePlacement = async (x: number, y: number, lat?: number, lng?: number) => {
@@ -185,9 +229,9 @@ export default function MapPage() {
     setSuccessMessage(null);
 
     try {
-      setSuccessMessage('Confirm the 0 ETH Base transaction in your wallet…');
-      const txHash = await sendPlacementTransaction();
-      setSuccessMessage('Transaction sent — saving position…');
+      setSuccessMessage(`Confirm the ${playerBoat ? 'move' : 'placement'} transaction in your wallet...`);
+      const txHash = await sendPlacementTransaction(x, y, Boolean(playerBoat));
+      setSuccessMessage('Transaction confirmed. Saving position...');
 
       if (playerBoat) {
         await gameApi.moveBoat(token, { x, y, lat, lng, placementTxHash: txHash });
@@ -206,7 +250,7 @@ export default function MapPage() {
     }
   };
 
-  // ── Claim ────────────────────────────────────────────────────────────────
+  // Claim
 
   const handleClaim = async () => {
     if (!token || !activeBoatInfo?.canClaim) return;
@@ -215,9 +259,12 @@ export default function MapPage() {
     setSuccessMessage(null);
 
     try {
-      const res = await gameApi.claimDaily(token);
+      setSuccessMessage('Confirm the daily claim transaction in your wallet...');
+      const claimTxHash = await sendClaimTransaction();
+      setSuccessMessage('Transaction confirmed. Syncing reward...');
+      const res = await gameApi.claimDaily(token, { claimTxHash });
       const xpEarned = (res as any)?.xpEarned ?? (res as any)?.claim?.xpEarned ?? activeBoatInfo.dailyXp;
-      setSuccessMessage(`+${xpEarned} XP claimed! Streak: ${(activeBoatInfo.currentStreak ?? 0) + 1} days 🎉`);
+      setSuccessMessage(`+${xpEarned} XP claimed. Streak: ${(activeBoatInfo.currentStreak ?? 0) + 1} days`);
       await fetchMap();
     } catch (err: any) {
       setError(err.message || 'Claim failed. Please try again.');
@@ -226,7 +273,7 @@ export default function MapPage() {
     }
   };
 
-  // ── Derived UI values ────────────────────────────────────────────────────
+  // Derived UI values
 
   const canTogglePlacement = useMemo(() => !!activeBoatInfo, [activeBoatInfo]);
 
@@ -253,12 +300,12 @@ export default function MapPage() {
 
   const bKey = (activeBoatInfo?.boatType ?? '').toUpperCase() as BoatTypeName;
 
-  // ── Render ───────────────────────────────────────────────────────────────
+  // Render
 
   return (
     <section className="space-y-5">
 
-      {/* ── Page header ─────────────────────────────────────────────── */}
+      {/* Page header */}
       <header className="ocean-card space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -275,7 +322,7 @@ export default function MapPage() {
           </button>
         </div>
 
-        {/* ── XP accumulation panel ────────────────────────────────── */}
+        {/* XP accumulation panel */}
         {activeBoatInfo ? (
           <div
             style={{
@@ -302,7 +349,7 @@ export default function MapPage() {
                 </p>
                 <p style={{ fontSize: '0.8rem', color: '#64748B', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
                   <Zap size={12} color="#F59E0B" />
-                  {activeBoatInfo.dailyXp} XP / 24 h &nbsp;·&nbsp; Streak: {activeBoatInfo.currentStreak} days
+                  {activeBoatInfo.dailyXp} XP / 24 h &nbsp;-&nbsp; Streak: {activeBoatInfo.currentStreak} days
                 </p>
               </div>
             </div>
@@ -359,12 +406,12 @@ export default function MapPage() {
                   }}
                 >
                   <Gift size={16} />
-                  {isClaiming ? 'Claiming…' : `Claim ${activeBoatInfo.dailyXp} XP`}
+                  {isClaiming ? 'Claiming...' : `Claim ${activeBoatInfo.dailyXp} XP`}
                 </button>
               ) : (
                 <div style={{ fontSize: '0.8rem', color: '#64748B', display: 'flex', alignItems: 'center', gap: 4 }}>
                   <Clock size={14} color="#94A3B8" />
-                  Accruing XP…
+                  Accruing XP...
                 </div>
               )
             ) : (
@@ -377,13 +424,13 @@ export default function MapPage() {
           <div className="empty-state text-sm">
             No active NFT boat.{' '}
             <Link href="/nft-mint" style={{ color: 'var(--ocean-500)', fontWeight: 600 }}>
-              Mint your first vessel →
+              Mint your first vessel ->
             </Link>
           </div>
         )}
       </header>
 
-      {/* ── Alerts ──────────────────────────────────────────────────── */}
+      {/* Alerts */}
       {error && (
         <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 14, padding: '0.85rem 1.1rem', color: '#DC2626', fontWeight: 600, fontSize: '0.87rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <AlertCircle size={16} /> {error}
@@ -395,7 +442,7 @@ export default function MapPage() {
         </div>
       )}
 
-      {/* ── Map ─────────────────────────────────────────────────────── */}
+      {/* Map */}
       {isLoading ? (
         <div className="ocean-card text-sm text-gray-600">
           Loading map <span className="loading-dots" />

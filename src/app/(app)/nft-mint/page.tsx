@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { BrowserProvider, Contract, parseEther, parseUnits } from 'ethers';
+import { BrowserProvider, Contract, Interface, parseEther, parseUnits } from 'ethers';
 import { nftApi } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
+import config from '@/lib/config';
 import type { BoatType } from '@/types';
 import BoatSVG, { BOAT_COLORS, boatLabel, type BoatTypeName } from '@/components/boats/BoatSVG';
 import {
@@ -11,14 +12,18 @@ import {
   Coins, CreditCard, Info, AlertCircle
 } from 'lucide-react';
 
-// ── Smart Contract Setup ──────────────────────────────────────────────────
-const BOAT_NFT_ADDRESS = "0x667dA3BB4EDaE93c71427D17D74Df430aA34B09F";
-const USDC_ADDRESS     = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+// Smart Contract Setup
+const BOAT_NFT_ADDRESS = config.blockchain.contracts.boatNFT;
+const USDC_ADDRESS = config.blockchain.contracts.usdc;
 
 const BOAT_NFT_ABI = [
-  "function mintBoat(uint8 boatType) external payable",
-  "function mintBoatWithUsdc(uint8 boatType) external"
+  'function mintBoat(uint8 boatType) external payable',
+  'function mintBoatWithUsdc(uint8 boatType) external',
+  'event BoatMinted(address indexed to, uint256 indexed tokenId, uint8 boatType, bool paidWithUsdc)',
+  'event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)',
 ];
+
+const BOAT_NFT_INTERFACE = new Interface(BOAT_NFT_ABI);
 
 const ERC20_ABI = [
   "function approve(address spender, uint256 amount) external returns (bool)",
@@ -33,7 +38,7 @@ const BOAT_TYPE_IDS: Record<string, number> = {
   MEGASHIP: 4
 };
 
-// ── Boat catalogue (prices) ───────────────────────────────────────────────
+// Boat catalogue (prices)
 const BOAT_USD: Record<string, { usd: string; eth: string; usdc: string; free: boolean }> = {
   DINGHY:   { usd: 'Free',  eth: '0',         usdc: '0',       free: true },
   SAILBOAT: { usd: '$1.00', eth: '0.00034',   usdc: '1',       free: false },
@@ -78,6 +83,43 @@ type EthereumProvider = {
 
 const getEthereum = () =>
   (window as typeof window & { ethereum?: EthereumProvider }).ethereum;
+
+const isConfiguredAddress = (address?: string) =>
+  Boolean(address && !/^0x0{40}$/i.test(address));
+
+const getMintedTokenId = (
+  receipt: { logs?: Array<{ topics: readonly string[]; data: string }> },
+  ownerAddress: string
+) => {
+  const normalizedOwner = ownerAddress.toLowerCase();
+
+  for (const log of receipt.logs || []) {
+    try {
+      const parsed = BOAT_NFT_INTERFACE.parseLog({
+        topics: [...log.topics],
+        data: log.data,
+      });
+
+      if (!parsed) continue;
+
+      if (parsed.name === 'BoatMinted') {
+        return Number(parsed.args.tokenId);
+      }
+
+      if (
+        parsed.name === 'Transfer' &&
+        String(parsed.args.from).toLowerCase() === '0x0000000000000000000000000000000000000000' &&
+        String(parsed.args.to).toLowerCase() === normalizedOwner
+      ) {
+        return Number(parsed.args.tokenId);
+      }
+    } catch {
+      // Ignore logs from other contracts in the same receipt.
+    }
+  }
+
+  return null;
+};
 
 export default function NftMintPage() {
   const { token, user } = useAuth();
@@ -138,7 +180,7 @@ export default function NftMintPage() {
     }
   };
 
-  // ── Minting Logic ───────────────────────────────────────────────────────
+  // Minting Logic
   const handleMint = async (bKey: string) => {
     if (!token) return;
     const ethereum = getEthereum();
@@ -149,6 +191,16 @@ export default function NftMintPage() {
 
     const typeId = BOAT_TYPE_IDS[bKey];
     if (typeId === undefined) return;
+
+    if (!isConfiguredAddress(BOAT_NFT_ADDRESS)) {
+      setError('Boat NFT contract address is missing. Set NEXT_PUBLIC_BOAT_NFT_ADDRESS in Vercel.');
+      return;
+    }
+
+    if (payment === 'USDC' && !isConfiguredAddress(USDC_ADDRESS)) {
+      setError('USDC contract address is missing. Set NEXT_PUBLIC_USDC_ADDRESS in Vercel.');
+      return;
+    }
 
     try {
       setIsMinting(bKey);
@@ -165,6 +217,7 @@ export default function NftMintPage() {
       const provider = new BrowserProvider(ethereum);
       await provider.send('eth_requestAccounts', []);
       const signer = await provider.getSigner();
+      const signerAddress = await signer.getAddress();
       
       const boatNftContract = new Contract(BOAT_NFT_ADDRESS, BOAT_NFT_ABI, signer);
       const priceConfig = BOAT_USD[bKey];
@@ -173,7 +226,7 @@ export default function NftMintPage() {
 
       if (payment === 'ETH') {
         const ethPrice = parseEther(priceConfig.eth);
-        const balance = await provider.getBalance(await signer.getAddress());
+        const balance = await provider.getBalance(signerAddress);
         
         if (balance < ethPrice) {
           const formattedBalance = (Number(balance) / 1e18).toFixed(4);
@@ -187,7 +240,7 @@ export default function NftMintPage() {
         const usdcAmount = parseUnits(priceConfig.usdc, 6); // USDC has 6 decimals
 
         // Check allowance
-        const allowance = await usdcContract.allowance(await signer.getAddress(), BOAT_NFT_ADDRESS);
+        const allowance = await usdcContract.allowance(signerAddress, BOAT_NFT_ADDRESS);
         if (allowance < usdcAmount) {
           setSuccess('Approving USDC... Please confirm the transaction.');
           const approveTx = await usdcContract.approve(BOAT_NFT_ADDRESS, usdcAmount);
@@ -201,13 +254,13 @@ export default function NftMintPage() {
       setSuccess('Transaction submitted. Waiting for confirmation...');
       const receipt = await tx.wait();
 
-      // Find token ID from receipt events (just a fallback sync trigger here)
-      setSuccess('Boat minted successfully! Syncing with server...');
-      
-      // Let backend read from blockchain by giving it the user address, 
-      // or we can wait a bit for backend block listener if there is one.
-      // We will do a manual refresh.
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      const tokenId = getMintedTokenId(receipt, signerAddress);
+      if (!tokenId) {
+        throw new Error('Mint succeeded, but token ID could not be read from the transaction receipt.');
+      }
+
+      setSuccess('Boat minted successfully. Syncing with server...');
+      await nftApi.registerBoat(token, { tokenId, boatType: bKey, dailyXp: 1 });
       await fetchData();
       setSuccess(`${boatLabel(bKey)} added to your fleet!`);
 
@@ -224,7 +277,7 @@ export default function NftMintPage() {
     }
   };
 
-  // ── Payment method toggle ─────────────────────────────────────────────
+  // Payment method toggle
   const PaymentToggle = () => (
     <div style={{ display: 'inline-flex', background: '#F1F5F9', borderRadius: 999, padding: 4, gap: 4 }}>
       {(['ETH', 'USDC'] as PaymentMethod[]).map((m) => (
@@ -256,7 +309,7 @@ export default function NftMintPage() {
 
   const priceLabel = (bKey: string) => {
     const p = BOAT_USD[bKey];
-    if (!p) return '—';
+    if (!p) return '-';
     if (p.free) return 'Free';
     return payment === 'ETH' ? `${p.eth} ETH` : `${p.usdc} USDC`;
   };
@@ -298,7 +351,7 @@ export default function NftMintPage() {
         </div>
       ) : (
         <>
-          {/* ── Your Fleet ─────────────────────────────────────────── */}
+          {/* Your Fleet */}
           {boats.length > 0 && (
             <section className="ocean-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -328,7 +381,7 @@ export default function NftMintPage() {
                       </div>
                       {!boat.isActive && (
                         <button type="button" onClick={() => handleActivate(boat.tokenId)} disabled={isActivating === boat.tokenId} style={{ background: color.badge, color: '#fff', border: 'none', borderRadius: 999, padding: '0.6rem', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', opacity: isActivating === boat.tokenId ? 0.6 : 1 }}>
-                          {isActivating === boat.tokenId ? 'Activating…' : 'Set Active'}
+                          {isActivating === boat.tokenId ? 'Activating...' : 'Set Active'}
                         </button>
                       )}
                     </div>
@@ -338,7 +391,7 @@ export default function NftMintPage() {
             </section>
           )}
 
-          {/* ── Available Boats ────────────────────────────────────── */}
+          {/* Available Boats */}
           <section className="ocean-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
               <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -364,7 +417,7 @@ export default function NftMintPage() {
                 return (
                   <div key={boat.type} style={{ background: color.bg, border: `1px solid ${color.border}`, borderRadius: 16, padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'center', padding: '0.5rem 0' }}>
-                      {/* Büyütülmüş gemi resimleri */}
+                      {/* Enlarged boat images */}
                       <BoatSVG type={bKey as BoatTypeName} size={84} />
                     </div>
                     <div>
@@ -408,7 +461,7 @@ export default function NftMintPage() {
             </div>
           </section>
 
-          {/* ── Power Boosts ───────────────────────────────────────── */}
+          {/* Power Boosts */}
           {boosts.length > 0 && (
             <section className="ocean-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

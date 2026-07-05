@@ -11,8 +11,8 @@ interface BoatSVGProps {
   className?: string;
 }
 
-// ── Boat image mapping ─────────────────────────────────────────────────────
-// Files live at: /public/boosts/ship_v1-Photoroom.png … ship_v5-Photoroom.png
+// Boat image mapping
+// Files live at: /public/boosts/ship_v1-Photoroom.png through ship_v5-Photoroom.png
 // v1=Dinghy, v2=Sailboat, v3=Yacht, v4=Trawler, v5=Megaship
 
 const BOAT_IMAGES: Record<string, string> = {
@@ -23,7 +23,7 @@ const BOAT_IMAGES: Record<string, string> = {
   MEGASHIP: '/boosts/ship_v5-Photoroom.png',
 };
 
-// ── Metadata ───────────────────────────────────────────────────────────────
+// Metadata
 
 const BOAT_LABELS: Record<string, string> = {
   DINGHY:   'Dinghy',
@@ -53,7 +53,7 @@ export function boatLabel(type: string): string {
   return BOAT_LABELS[(type ?? '').toUpperCase()] ?? type;
 }
 
-// ── Component ──────────────────────────────────────────────────────────────
+// Component
 
 export default function BoatSVG({ type, size = 64, className = '' }: BoatSVGProps) {
   const key   = ((type ?? 'DINGHY').toUpperCase()) as BoatTypeName;

@@ -37,8 +37,6 @@
   ],
   "exclude": [
     "node_modules",
-    "hardhat.config.ts",
-    "src/lib/mongodb.ts",
-    "src/lib/redis.ts"
+    "hardhat.config.ts"
   ]
 }

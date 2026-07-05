@@ -21,11 +21,36 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="app-layout relative pb-20">
-      <div className="floating-fish" style={{ top: '8%', left: '6%' }} aria-hidden="true" />
-      <div className="floating-fish" style={{ top: '65%', left: '88%', animationDelay: '1.5s' }} aria-hidden="true" />
+    <div
+      className="app-layout"
+      style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(160deg, #000e1a 0%, #001828 40%, #00101f 100%)',
+        position: 'relative',
+        paddingBottom: '5rem',
+      }}
+    >
+      {/* Subtle ambient glows */}
+      <div aria-hidden="true" style={{
+        position: 'fixed', top: '-15vh', left: '-10vw',
+        width: '55vw', height: '55vw', maxWidth: 700, maxHeight: 700,
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(31,122,224,0.07) 0%, transparent 70%)',
+        pointerEvents: 'none', zIndex: 0,
+      }} />
+      <div aria-hidden="true" style={{
+        position: 'fixed', bottom: '-10vh', right: '-8vw',
+        width: '45vw', height: '45vw', maxWidth: 600, maxHeight: 600,
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(27,153,139,0.06) 0%, transparent 70%)',
+        pointerEvents: 'none', zIndex: 0,
+      }} />
 
-      <div className="container app-content py-6 flex flex-col gap-6">
+      {/* Content */}
+      <div
+        className="container app-content py-6 flex flex-col gap-6"
+        style={{ position: 'relative', zIndex: 1 }}
+      >
         <MainNavigation />
         <main>{children}</main>
       </div>
@@ -34,4 +59,3 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-

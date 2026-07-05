@@ -6,7 +6,9 @@ export const config = {
     contracts: {
       fishToken: process.env.NEXT_PUBLIC_FISH_TOKEN_ADDRESS || '',
       boatNFT: process.env.NEXT_PUBLIC_BOAT_NFT_ADDRESS || '',
+      gameController: process.env.NEXT_PUBLIC_GAME_CONTROLLER_ADDRESS || '',
       boostNFT: process.env.NEXT_PUBLIC_BOOST_NFT_ADDRESS || '',
+      usdc: process.env.NEXT_PUBLIC_USDC_ADDRESS || '',
     },
   },
 

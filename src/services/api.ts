@@ -95,7 +95,7 @@ export const gameApi = {
   },
   async placeBoat(
     token: string,
-    payload: { x: number; y: number; lat?: number; lng?: number; placementTxHash?: string }
+    payload: { x: number; y: number; lat?: number; lng?: number; placementTxHash: string }
   ) {
     return request<{ success: boolean; placement: any }>('/game/place-boat', {
       token,
@@ -105,7 +105,7 @@ export const gameApi = {
   },
   async moveBoat(
     token: string,
-    payload: { x: number; y: number; lat?: number; lng?: number; placementTxHash?: string }
+    payload: { x: number; y: number; lat?: number; lng?: number; placementTxHash: string }
   ) {
     return request<{ success: boolean; movement: any }>('/game/move-boat', {
       token,
@@ -117,8 +117,10 @@ export const gameApi = {
     return request<{ success: boolean; claim: any }>('/game/claim-daily', {
       token,
       method: 'POST',
+      body: JSON.stringify({}),
     });
   },
+
   async submitFishingScore(
     token: string,
     payload: { score: number; reactionMs?: number }

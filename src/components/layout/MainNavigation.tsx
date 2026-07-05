@@ -10,75 +10,147 @@ type NavItem = {
   label: string;
   caption: string;
   mark: string;
+  emoji: string;
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { href: '/profile', label: 'Profile', caption: 'Captain overview', mark: 'PR' },
-  { href: '/map', label: 'Sea Map', caption: 'Deploy your boat', mark: 'MP' },
-  { href: '/leaderboard', label: 'Leaders', caption: 'Top captains', mark: 'LB' },
-  { href: '/nft-mint', label: 'NFT Fleet', caption: 'Upgrade boats', mark: 'NF' },
-  { href: '/daily-claim', label: 'Daily XP', caption: 'Streak boosts', mark: 'DX' },
+  { href: '/profile',     label: 'Profile',   caption: 'Captain overview',  mark: 'PR', emoji: '👤' },
+  { href: '/map',         label: 'Sea Map',   caption: 'Deploy your boat',  mark: 'MP', emoji: '🗺️' },
+  { href: '/leaderboard', label: 'Leaders',   caption: 'Top captains',      mark: 'LB', emoji: '🏆' },
+  { href: '/nft-mint',    label: 'NFT Fleet', caption: 'Upgrade boats',     mark: 'NF', emoji: '⛵' },
+  { href: '/daily-claim', label: 'Daily XP',  caption: 'Streak boosts',     mark: 'DX', emoji: '🎁' },
 ];
 
+/* ── Top navigation (dark glassmorphic) ─────────────────────────── */
 export const MainNavigation = () => {
   const pathname = usePathname();
   const { user, clearSession } = useAuth();
 
   return (
-    <div className="app-top-nav glass-panel border px-4 py-3 rounded-xl shadow-lg flex items-center justify-between gap-4">
-      <div className="flex items-center gap-3">
-        <Link href="/profile" className="shine rounded-full bg-white border px-3 py-2 flex items-center gap-2">
-          <span className="nav-mark" aria-hidden="true">FB</span>
+    <div
+      style={{
+        background: 'rgba(0, 16, 28, 0.65)',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderRadius: 22,
+        padding: '0.7rem 1rem',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '1rem',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.35)',
+      }}
+    >
+      {/* Logo */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <Link
+          href="/profile"
+          style={{
+            display: 'flex', alignItems: 'center', gap: '0.5rem',
+            textDecoration: 'none',
+            background: 'rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 999, padding: '0.5rem 0.9rem',
+            transition: 'background 0.2s ease',
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(255,255,255,0.1)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(255,255,255,0.06)'; }}
+        >
+          <span style={{
+            display: 'inline-grid', placeItems: 'center',
+            width: '1.8rem', height: '1.8rem', borderRadius: '50%',
+            background: 'linear-gradient(135deg, #4AAAF7, #1F7AE0)',
+            fontSize: '0.6rem', fontWeight: 900, color: '#fff',
+            letterSpacing: '0.02em',
+          }}>
+            FB
+          </span>
           <div>
-            <p className="text-sm font-semibold text-gray-700 leading-none">FishBase</p>
-            <p className="text-xs text-gray-500">Base App</p>
+            <p style={{ fontSize: '0.82rem', fontWeight: 700, color: '#fff', lineHeight: 1 }}>FishBase</p>
+            <p style={{ fontSize: '0.68rem', color: 'rgba(175,200,218,0.6)', lineHeight: 1, marginTop: '0.15rem' }}>Base App</p>
           </div>
         </Link>
+
         {user && (
-          <div className="hidden-sm flex-col">
-            <span className="text-sm text-gray-500">Captain</span>
-            <span className="font-semibold text-gray-800">{user.username}</span>
+          <div className="hidden-sm" style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '0.72rem', color: 'rgba(175,200,218,0.55)' }}>Captain</span>
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff' }}>{user.username}</span>
           </div>
         )}
       </div>
 
-      <nav className="hidden-sm flex items-center gap-2">
+      {/* Desktop nav */}
+      <nav className="hidden-sm" style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
         {NAV_ITEMS.map((item) => {
-          const isActive =
-            pathname === item.href || (item.href.includes('#') && pathname === item.href.split('#')[0]);
-
+          const isActive = pathname === item.href;
           return (
-            <Link key={item.href} href={item.href} className="relative">
+            <Link key={item.href} href={item.href} style={{ position: 'relative', textDecoration: 'none' }}>
               <motion.div
                 whileHover={{ y: -2 }}
-                className={`px-4 py-2 rounded-lg flex flex-col transition-all ${
-                  isActive
-                    ? 'bg-blue-200 text-blue-800 shadow-md'
-                    : 'bg-white/80 text-gray-600 hover:bg-blue-100/80'
-                }`}
+                style={{
+                  padding: '0.45rem 0.9rem',
+                  borderRadius: 12,
+                  display: 'flex', flexDirection: 'column',
+                  background: isActive ? 'rgba(74,170,247,0.15)' : 'transparent',
+                  border: isActive ? '1px solid rgba(74,170,247,0.25)' : '1px solid transparent',
+                  transition: 'background 0.2s ease, border-color 0.2s ease',
+                  cursor: 'pointer',
+                }}
               >
-                <span className="text-base font-semibold flex items-center gap-1">
-                  <span className="nav-mark nav-mark-small" aria-hidden="true">{item.mark}</span>
+                <span style={{
+                  fontSize: '0.82rem', fontWeight: 700,
+                  color: isActive ? '#fff' : 'rgba(175,200,218,0.70)',
+                  display: 'flex', alignItems: 'center', gap: '0.35rem',
+                  transition: 'color 0.2s ease',
+                }}>
+                  <span style={{ fontSize: '0.72rem' }}>{item.emoji}</span>
                   {item.label}
                 </span>
-                <span className="text-xs text-gray-500">{item.caption}</span>
+                <span style={{ fontSize: '0.65rem', color: isActive ? 'rgba(175,200,218,0.6)' : 'rgba(175,200,218,0.38)', marginTop: '0.08rem' }}>
+                  {item.caption}
+                </span>
               </motion.div>
             </Link>
           );
         })}
       </nav>
 
-      <div className="flex items-center gap-2">
-        <Link href="/daily-claim" className="hidden-sm primary-button text-sm py-2 px-4">
-          Daily XP
+      {/* Right actions */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <Link
+          href="/daily-claim"
+          className="hidden-sm"
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+            background: 'linear-gradient(135deg, rgba(74,170,247,0.2), rgba(31,122,224,0.15))',
+            border: '1px solid rgba(74,170,247,0.28)',
+            color: '#fff', borderRadius: 999,
+            padding: '0.5rem 1rem', fontSize: '0.82rem', fontWeight: 700,
+            textDecoration: 'none', transition: 'background 0.2s ease, transform 0.2s ease',
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.transform = 'scale(1.04)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.transform = 'scale(1)'; }}
+        >
+          🎁 Daily XP
         </Link>
+
         <button
           onClick={clearSession}
-          className="secondary-button sign-out-button text-sm py-2 px-4"
           type="button"
           aria-label="Sign out"
+          style={{
+            display: 'flex', alignItems: 'center', gap: '0.35rem',
+            background: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            color: 'rgba(175,200,218,0.75)', borderRadius: 999,
+            padding: '0.5rem 0.85rem', fontSize: '0.82rem', fontWeight: 600,
+            cursor: 'pointer', transition: 'background 0.2s ease, color 0.2s ease',
+          }}
+          onMouseEnter={(e) => { const b = e.currentTarget as HTMLButtonElement; b.style.background='rgba(255,80,80,0.1)'; b.style.color='#F87171'; }}
+          onMouseLeave={(e) => { const b = e.currentTarget as HTMLButtonElement; b.style.background='rgba(255,255,255,0.05)'; b.style.color='rgba(175,200,218,0.75)'; }}
         >
-          <span className="sign-out-mark" aria-hidden="true">SO</span>
+          <span className="sign-out-mark" aria-hidden="true" style={{ fontSize: '0.6rem', fontWeight: 900 }}>SO</span>
           <span className="sign-out-text">Sign Out</span>
         </button>
       </div>
@@ -86,15 +158,24 @@ export const MainNavigation = () => {
   );
 };
 
+/* ── Bottom navigation (dark glassmorphic) ───────────────────────── */
 export const BottomNavigation = () => {
   const pathname = usePathname();
 
   return (
-    <nav className="bottom-nav" aria-label="Primary navigation">
+    <nav
+      className="bottom-nav"
+      aria-label="Primary navigation"
+      style={{
+        background: 'rgba(0, 14, 24, 0.88)',
+        border: '1px solid rgba(255,255,255,0.1)',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
+        boxShadow: '0 -4px 30px rgba(0,0,0,0.4), 0 18px 42px rgba(27,92,158,0.12)',
+      }}
+    >
       {NAV_ITEMS.map((item) => {
-        const isActive =
-          pathname === item.href || (item.href.includes('#') && pathname === item.href.split('#')[0]);
-
+        const isActive = pathname === item.href;
         return (
           <Link
             key={item.href}
@@ -102,10 +183,26 @@ export const BottomNavigation = () => {
             className={`bottom-nav-item ${isActive ? 'is-active' : ''}`}
             aria-label={item.label}
           >
-            <span className="bottom-nav-icon" aria-hidden="true">
-              {item.mark}
+            <span
+              className="bottom-nav-icon"
+              aria-hidden="true"
+              style={{
+                background: isActive
+                  ? 'linear-gradient(135deg, #4AAAF7, #1F7AE0)'
+                  : 'rgba(255,255,255,0.06)',
+                border: isActive ? 'none' : '1px solid rgba(255,255,255,0.1)',
+                color: isActive ? '#fff' : 'rgba(175,200,218,0.7)',
+                fontSize: '1.1rem',
+              }}
+            >
+              {item.emoji}
             </span>
-            <span className="bottom-nav-label">{item.label}</span>
+            <span
+              className="bottom-nav-label"
+              style={{ color: isActive ? '#fff' : 'rgba(175,200,218,0.55)' }}
+            >
+              {item.label}
+            </span>
           </Link>
         );
       })}

@@ -32,7 +32,7 @@ const GameMap: React.FC<GameMapProps> = ({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', maxWidth: '64rem', margin: '0 auto' }}>
 
-      {/* ── Toolbar ────────────────────────────────────────── */}
+      {/* Toolbar */}
       <div
         className="live-map-toolbar"
         style={{
@@ -78,7 +78,7 @@ const GameMap: React.FC<GameMapProps> = ({
             style={{ opacity: isLoading ? 0.55 : 1, cursor: isLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
           >
             {isLoading ? (
-              <>Working… <span className="loading-dots" /></>
+              <>Working... <span className="loading-dots" /></>
             ) : isPlacementMode ? (
               <>Cancel</>
             ) : playerBoat ? (
@@ -90,7 +90,7 @@ const GameMap: React.FC<GameMapProps> = ({
         )}
       </div>
 
-      {/* ── Placement mode hint ────────────────────────────── */}
+      {/* Placement mode hint */}
       {isPlacementMode && !isLoading && (
         <div
           style={{
@@ -107,11 +107,11 @@ const GameMap: React.FC<GameMapProps> = ({
           }}
         >
           <MousePointerClick size={18} color="#F59E0B" />
-          Click any open sea tile on the map to drop anchor there. A 0 ETH Base transaction confirms the placement.
+          Click any open sea tile on the map to drop anchor there. A GameController transaction confirms the placement.
         </div>
       )}
 
-      {/* ── Map ───────────────────────────────────────────── */}
+      {/* Map */}
       <Map
         gridSize={100}
         boats={boats}
@@ -123,7 +123,7 @@ const GameMap: React.FC<GameMapProps> = ({
         isPlacementMode={isPlacementMode}
       />
 
-      {/* ── Footer info ───────────────────────────────────── */}
+      {/* Footer info */}
       <div
         style={{
           background:   'rgba(239,246,255,0.85)',

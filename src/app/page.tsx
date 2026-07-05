@@ -1,244 +1,533 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { WalletConnect } from '@/components/auth/WalletConnect';
-import {
-  Calendar,
-  Map as MapIcon,
-  ChevronRight,
-  Zap,
-  Anchor,
-  Sailboat,
-  Ship,
-  Truck,
-  Crown,
-} from 'lucide-react';
+import { BrowserProvider } from 'ethers';
+import { authApi } from '@/services/api';
 
-// ── Boat tiers shown on landing page ────────────────────────────────────────
-const BOATS = [
+/* ── Page cards shown in the scroll section ─────────────────────── */
+const PAGES = [
   {
-    icon: Anchor,
-    name: 'Dinghy',
-    xp: '10 XP/day',
-    price: 'Free',
-    color: '#3B82F6',
-    bg: '#EFF6FF',
-    border: '#BFDBFE',
-    desc: 'Your starter vessel — claim it free when you join.',
+    href: '/map',
+    emoji: '🗺️',
+    bg: 'rgba(31, 122, 224, 0.18)',
+    title: 'Live Sea Map',
+    desc: 'Place your boat on the 100×100 live grid and earn daily XP with every move.',
+    tag: 'Explore',
   },
   {
-    icon: Sailboat,
-    name: 'Sailboat',
-    xp: '25 XP/day',
-    price: '$1.00',
-    color: '#22C55E',
-    bg: '#F0FDF4',
-    border: '#BBF7D0',
-    desc: 'A nimble sail for active captains who love the wind.',
+    href: '/daily-claim',
+    emoji: '🎁',
+    bg: 'rgba(251, 191, 36, 0.18)',
+    title: 'Daily Reward Deck',
+    desc: 'Claim streak XP every 24 h. Hit day 7 and unlock the 2× Golden Tide multiplier.',
+    tag: 'Earn',
   },
   {
-    icon: MapIcon,
-    name: 'Yacht',
-    xp: '50 XP/day',
-    price: '$3.00',
-    color: '#F97316',
-    bg: '#FFF7ED',
-    border: '#FED7AA',
-    desc: 'Sleek cruiser with twice the earning power.',
+    href: '/nft-mint',
+    emoji: '⛵',
+    bg: 'rgba(139, 92, 246, 0.18)',
+    title: 'NFT Fleet Hangar',
+    desc: 'Mint Dinghies to Mega Ships — stronger vessels earn up to 200 XP per day.',
+    tag: 'Collect',
   },
   {
-    icon: Truck,
-    name: 'Trawler',
-    xp: '100 XP/day',
-    price: '$5.00',
-    color: '#EF4444',
-    bg: '#FFF1F2',
-    border: '#FECDD3',
-    desc: 'Heavy-duty commercial trawler built for serious fishing.',
+    href: '/leaderboard',
+    emoji: '🏆',
+    bg: 'rgba(20, 184, 166, 0.18)',
+    title: 'Captain Leaderboards',
+    desc: 'XP rankings, streak champions, and fishing mini-game timing scores — all live.',
+    tag: 'Compete',
   },
   {
-    icon: Crown,
-    name: 'Mega Ship',
-    xp: '200 XP/day',
-    price: '$6.99',
-    color: '#8B5CF6',
-    bg: '#F5F3FF',
-    border: '#DDD6FE',
-    desc: 'The ultimate ocean liner — maximum XP, maximum prestige.',
+    href: '/profile',
+    emoji: '👤',
+    bg: 'rgba(249, 115, 22, 0.18)',
+    title: 'Captain Profile',
+    desc: 'View your fleet, total XP, streak history and active boost multipliers.',
+    tag: 'Profile',
   },
 ];
 
-export default function LandingPage() {
-  const router = useRouter();
-  const { user } = useAuth();
+/* ── Wallet login ────────────────────────────────────────────────── */
+type EthereumProvider = {
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+};
+const getEth = () =>
+  (window as typeof window & { ethereum?: EthereumProvider }).ethereum;
 
+function useHeroLogin() {
+  const { setSession } = useAuth();
+  const router = useRouter();
+  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError]   = useState<string | null>(null);
+  const [busy, setBusy]     = useState(false);
+
+  const login = async () => {
+    const ethereum = getEth();
+    if (!ethereum) {
+      setError('No wallet found. Open FishBase in Base App or a wallet browser.');
+      return;
+    }
+    try {
+      setBusy(true); setError(null);
+      setStatus('Connecting wallet…');
+      const provider = new BrowserProvider(ethereum);
+      await provider.send('eth_requestAccounts', []);
+      try {
+        await ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x2105' }] });
+      } catch { /* already on Base */ }
+      const signer = await provider.getSigner();
+      const walletAddress = await signer.getAddress();
+      setStatus('Preparing secure sign-in…');
+      const challenge = await authApi.walletChallenge({
+        walletAddress,
+        domain: window.location.host,
+        uri: window.location.origin,
+        chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID || 8453),
+      });
+      setStatus('Sign the login message in your wallet…');
+      const signature = await signer.signMessage(challenge.message);
+      setStatus('Verifying…');
+      const response = await authApi.walletLogin({
+        walletAddress,
+        message: challenge.message,
+        signature,
+        nonce: challenge.nonce,
+      });
+      setSession(response.token, response.user);
+      setStatus('Welcome aboard!');
+      router.replace('/profile');
+    } catch (err: any) {
+      setError(err?.message ?? 'Wallet sign-in failed.');
+      setStatus(null);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return { login, status, error, busy };
+}
+
+/* ── Scroll-triggered visibility hook ───────────────────────────── */
+function useInView(threshold = 0.15) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect(); } },
+      { threshold }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [threshold]);
+
+  return { ref, visible };
+}
+
+/* ═══════════════════════════════════════════════════════════════════ */
+export default function LandingPage() {
+  const router   = useRouter();
+  const { user } = useAuth();
+  const { login, status, error, busy } = useHeroLogin();
+
+  /* Scroll-section visibility */
+  const showcase    = useInView(0.08);
+  const bottomBar   = useInView(0.2);
+
+  /* Redirect authenticated users */
   useEffect(() => {
     if (user) router.replace('/profile');
   }, [user, router]);
 
   return (
-    <main className="container py-8 md:py-16 flex flex-col gap-16">
+    <div style={{ fontFamily: 'var(--font-nunito, Nunito, sans-serif)', background: '#000e1a' }}>
 
-      {/* ── Hero ──────────────────────────────────────────────────────────── */}
-      <section className="flex flex-col md:flex-row items-center gap-8 md:gap-16 min-h-[60vh] md:min-h-[70vh]">
-        <div className="flex-1 flex flex-col items-start gap-6 relative z-10">
-          <span className="badge bg-blue-50 text-blue-700 px-4 py-1.5 rounded-full text-sm font-semibold border border-blue-200">
-            Base App · Chain ID 8453
-          </span>
-          <h1 className="game-title text-5xl md:text-7xl font-extrabold text-blue-900 leading-tight">
+      {/* ══════════════════════════════════════════════════════════
+          HERO — Exactly 100 vh, video fills screen
+      ══════════════════════════════════════════════════════════ */}
+      <div
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: '100vh',          /* exact viewport height */
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        {/* Fullscreen video */}
+        <video
+          autoPlay loop muted playsInline
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            zIndex: 0,
+          }}
+          poster="/icon.png"
+        >
+          <source src="/hero-bg.mp4" type="video/mp4" />
+          <source
+            src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260314_131748_f2ca2a28-fed7-44c8-b9a9-bd9acdd5ec31.mp4"
+            type="video/mp4"
+          />
+        </video>
+
+        {/* Scrim */}
+        <div className="hero-veil" aria-hidden="true" />
+
+        {/* ── Glassmorphic Nav ─────────────────────────────────── */}
+        <nav
+          className="animate-fade-rise"
+          style={{
+            position: 'relative',
+            zIndex: 10,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '1.4rem 2rem',
+            maxWidth: '88rem',
+            margin: '0 auto',
+            width: '100%',
+          }}
+          aria-label="Primary navigation"
+        >
+          {/* Logo */}
+          <Link href="/" className="hero-nav-logo">
             FishBase
-          </h1>
-          <p className="text-gray-600 text-lg md:text-xl max-w-lg leading-relaxed">
-            Connect your Base wallet, deploy your fleet on the live sea map,
-            earn daily XP, and climb to captain rank — all onchain.
-          </p>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto mt-4">
-            <WalletConnect className="wallet-panel" />
-            <Link
-              href="/leaderboard"
-              className="secondary-button !py-3 !px-6 rounded-full flex items-center justify-center gap-2 w-full sm:w-auto"
-            >
-              Leaderboards <ChevronRight size={18} />
-            </Link>
-          </div>
-        </div>
-
-        {/* Hero visual */}
-        <div className="flex-1 flex justify-center w-full relative z-10 mt-8 md:mt-0">
-          <div className="w-full max-w-[300px] aspect-square rounded-full border-[12px] border-white/80 shadow-2xl bg-gradient-to-br from-blue-50 to-blue-200 flex flex-col items-center justify-center gap-2">
-            <Ship size={64} color="#1D4ED8" strokeWidth={1.5} />
-            <strong className="text-blue-700 text-2xl font-black tracking-wide">FishBase</strong>
-            <span className="text-blue-500 text-sm font-semibold">Base Mainnet</span>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Feature cards ─────────────────────────────────────────────────── */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <article className="bg-white/90 backdrop-blur border border-blue-100 rounded-2xl p-8 shadow-sm hover:shadow-md transition-shadow">
-          <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 mb-6">
-            <Calendar size={24} />
-          </div>
-          <h2 className="text-xl font-bold text-gray-800 mb-3">Daily XP</h2>
-          <p className="text-gray-600 leading-relaxed">
-            Claim streak rewards every 24 hours and keep your captain profile moving forward.
-          </p>
-        </article>
-
-        <article className="bg-white/90 backdrop-blur border border-amber-100 rounded-2xl p-8 shadow-sm hover:shadow-md transition-shadow">
-          <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 mb-6">
-            <MapIcon size={24} />
-          </div>
-          <h2 className="text-xl font-bold text-gray-800 mb-3">Live Map</h2>
-          <p className="text-gray-600 leading-relaxed">
-            Place boats across Base waters and react to the dynamic 100×100 board.
-          </p>
-        </article>
-
-        <article className="bg-white/90 backdrop-blur border border-teal-100 rounded-2xl p-8 shadow-sm hover:shadow-md transition-shadow">
-          <div className="w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center text-teal-600 mb-6">
-            <Zap size={24} />
-          </div>
-          <h2 className="text-xl font-bold text-gray-800 mb-3">NFT Fleet</h2>
-          <p className="text-gray-600 leading-relaxed">
-            Mint stronger boats and boost your earning power — pay with ETH or USDC.
-          </p>
-        </article>
-      </section>
-
-      {/* ── Boat pricing ──────────────────────────────────────────────────── */}
-      <section>
-        <div className="text-center mb-8">
-          <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900">Choose Your Vessel</h2>
-          <p className="text-gray-500 mt-2 text-lg">Pay with ETH or USDC — your choice.</p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          {BOATS.map((boat) => {
-            const Icon = boat.icon;
-            return (
-              <div
-                key={boat.name}
-                style={{
-                  background:    boat.bg,
-                  border:        `1.5px solid ${boat.border}`,
-                  borderRadius:  20,
-                  padding:       '1.5rem 1.25rem',
-                  display:       'flex',
-                  flexDirection: 'column',
-                  gap:           '0.75rem',
-                  transition:    'box-shadow 0.2s ease',
-                }}
-                className="hover:shadow-lg"
-              >
-                {/* Icon */}
-                <div
-                  style={{
-                    width:          48,
-                    height:         48,
-                    borderRadius:   '50%',
-                    background:     `${boat.color}18`,
-                    display:        'flex',
-                    alignItems:     'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Icon size={24} color={boat.color} />
-                </div>
-
-                {/* Name + XP */}
-                <div>
-                  <p style={{ fontWeight: 700, color: '#1E293B', fontSize: '1rem' }}>{boat.name}</p>
-                  <p style={{ fontSize: '0.78rem', color: boat.color, fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.2rem' }}>
-                    <Zap size={12} /> {boat.xp}
-                  </p>
-                </div>
-
-                {/* Description */}
-                <p style={{ fontSize: '0.78rem', color: '#64748B', lineHeight: 1.5, flex: 1 }}>
-                  {boat.desc}
-                </p>
-
-                {/* Price badge */}
-                <div
-                  style={{
-                    background:   boat.color,
-                    color:        '#fff',
-                    borderRadius: 999,
-                    padding:      '0.45rem 0',
-                    textAlign:    'center',
-                    fontWeight:   700,
-                    fontSize:     '0.9rem',
-                  }}
-                >
-                  {boat.price}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="text-center mt-6">
-          <Link href="/nft-mint" className="primary-button inline-flex items-center gap-2 !px-8 !py-3 rounded-full text-base font-semibold">
-            View NFT Hangar <ChevronRight size={18} />
+            <sup style={{ fontSize: '0.5em', opacity: 0.55, verticalAlign: 'super', lineHeight: 0 }}>®</sup>
           </Link>
-        </div>
-      </section>
 
-      {/* ── Footer note ───────────────────────────────────────────────────── */}
-      <section className="bg-white/60 border border-blue-100 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-bold text-gray-800">Built on Base</h2>
-          <p className="text-sm text-gray-600 mt-1 max-w-xl">
-            Fully onchain game logic on Base mainnet. Connect with any EVM wallet and start playing instantly.
-          </p>
-        </div>
-        <WalletConnect className="wallet-panel" />
-      </section>
+          {/* Desktop links */}
+          <div className="hero-nav-links">
+            {[
+              { href: '/',            label: 'Home',      active: true  },
+              { href: '/map',         label: 'Sea Map',   active: false },
+              { href: '/leaderboard', label: 'Rankings',  active: false },
+              { href: '/nft-mint',    label: 'NFT Fleet', active: false },
+              { href: '/daily-claim', label: 'Daily XP',  active: false },
+            ].map(({ href, label, active }) => (
+              <Link key={href} href={href} className={`hero-nav-link${active ? ' nav-active' : ''}`}>
+                {label}
+              </Link>
+            ))}
+          </div>
 
-    </main>
+          {/* CTA button */}
+          <button
+            type="button"
+            className="liquid-glass"
+            onClick={login}
+            disabled={busy}
+            style={{
+              borderRadius: 999, padding: '0.58rem 1.35rem',
+              fontSize: '0.875rem', color: '#fff',
+              cursor: busy ? 'not-allowed' : 'pointer',
+              opacity: busy ? 0.6 : 1,
+              transition: 'transform 0.2s ease',
+              display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={(e) => { if (!busy) (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.05)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'; }}
+          >
+            {busy ? '⏳ Connecting…' : '⚓ Begin Journey'}
+          </button>
+        </nav>
+
+        {/* ── Hero content ─────────────────────────────────────── */}
+        <div
+          style={{
+            position: 'relative', zIndex: 10, flex: 1,
+            display: 'flex', alignItems: 'center',
+            padding: '0 2rem 4rem',
+            maxWidth: '88rem', margin: '0 auto', width: '100%',
+            gap: '3rem', flexWrap: 'wrap',
+          }}
+        >
+          {/* Left copy */}
+          <div style={{ flex: '1 1 400px', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <span
+              className="liquid-glass animate-fade-rise"
+              style={{
+                borderRadius: 999, padding: '0.4rem 1rem',
+                fontSize: '0.78rem', color: 'rgba(200,225,245,0.85)',
+                display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                width: 'fit-content', letterSpacing: '0.06em', fontWeight: 600,
+              }}
+            >
+              🔵 Base Mainnet · Chain ID 8453
+            </span>
+
+            <h1 className="hero-heading animate-fade-rise-delay">
+              Where captains{' '}
+              <span className="hero-heading-muted">rise through</span>{' '}
+              the{' '}
+              <span className="hero-heading-muted">silence of</span>{' '}
+              the sea.
+            </h1>
+
+            <p
+              className="animate-fade-rise-delay-2"
+              style={{
+                color: 'rgba(185,210,228,0.78)',
+                fontSize: 'clamp(1rem, 2vw, 1.12rem)',
+                lineHeight: 1.62, maxWidth: '46ch', margin: 0,
+              }}
+            >
+              Connect your Base wallet, drop anchor on the live sea grid, mint
+              your fleet, and climb the captain leaderboards — all fully onchain.
+            </p>
+
+            <div
+              className="animate-fade-rise-delay-3"
+              style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}
+            >
+              <button
+                type="button" onClick={login} disabled={busy}
+                className="liquid-glass"
+                style={{
+                  borderRadius: 999, padding: '0.9rem 2.4rem',
+                  fontSize: '1rem', color: '#fff', fontWeight: 600,
+                  cursor: busy ? 'not-allowed' : 'pointer',
+                  opacity: busy ? 0.6 : 1, transition: 'transform 0.2s ease',
+                }}
+                onMouseEnter={(e) => { if (!busy) (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.04)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'; }}
+              >
+                {busy ? '⏳ Connecting…' : '⚓ Begin Journey'}
+              </button>
+              <Link
+                href="/leaderboard"
+                style={{
+                  fontSize: '0.875rem', color: 'rgba(185,210,228,0.7)',
+                  textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.3rem',
+                  transition: 'color 0.2s ease',
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = '#fff'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(185,210,228,0.7)'; }}
+              >
+                View Leaderboards →
+              </Link>
+            </div>
+          </div>
+
+          {/* Right: Wallet panel */}
+          <div className="hero-wallet-panel animate-fade-rise-delay-2">
+            <p style={{
+              fontFamily: 'var(--font-display,"Instrument Serif",serif)',
+              fontSize: '1.25rem', color: '#fff', marginBottom: '0.4rem', fontWeight: 400,
+            }}>
+              Set sail now
+            </p>
+            <p style={{ fontSize: '0.82rem', color: 'rgba(175,200,215,0.70)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
+              Connect your Base wallet to claim your free Dinghy and start earning XP.
+            </p>
+
+            <button
+              type="button" onClick={login} disabled={busy}
+              className="btn-hero-connect"
+            >
+              {busy ? '⏳ Connecting…' : '🔗 Connect Base Wallet'}
+            </button>
+
+            {status && (
+              <p style={{ fontSize: '0.78rem', color: 'rgba(150,200,240,0.85)', marginTop: '0.65rem', lineHeight: 1.45 }}>
+                {status}
+              </p>
+            )}
+            {error && (
+              <p style={{ fontSize: '0.78rem', color: '#F87171', marginTop: '0.65rem', lineHeight: 1.45 }}>
+                ⚠️ {error}
+              </p>
+            )}
+
+            <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '1.25rem 0' }} />
+
+            <p style={{ fontSize: '0.72rem', color: 'rgba(175,200,215,0.5)', marginBottom: '0.65rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              Explore FishBase
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+              {[
+                { href: '/map',         label: '🗺️ Sea Map' },
+                { href: '/daily-claim', label: '🎁 Daily XP' },
+                { href: '/nft-mint',    label: '⛵ NFT Fleet' },
+                { href: '/leaderboard', label: '🏆 Rankings' },
+              ].map(({ href, label }) => (
+                <Link
+                  key={href} href={href}
+                  style={{
+                    fontSize: '0.76rem', color: 'rgba(195,220,240,0.78)',
+                    textDecoration: 'none', background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.1)', borderRadius: 999,
+                    padding: '0.35rem 0.75rem', transition: 'background 0.2s, color 0.2s', fontWeight: 600,
+                  }}
+                  onMouseEnter={(e) => { const a = e.currentTarget as HTMLAnchorElement; a.style.background='rgba(255,255,255,0.13)'; a.style.color='#fff'; }}
+                  onMouseLeave={(e) => { const a = e.currentTarget as HTMLAnchorElement; a.style.background='rgba(255,255,255,0.06)'; a.style.color='rgba(195,220,240,0.78)'; }}
+                >
+                  {label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Scroll cue */}
+        <div
+          className="animate-fade-rise-delay-5"
+          style={{
+            position: 'absolute', bottom: '1.75rem', left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem',
+          }}
+        >
+          <span style={{ fontSize: '0.72rem', color: 'rgba(200,220,240,0.45)', letterSpacing: '0.1em', fontWeight: 700, textTransform: 'uppercase' }}>
+            Scroll to explore
+          </span>
+          <div style={{ animation: 'scroll-bounce 1.8s ease-in-out infinite' }}>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M5 8l5 5 5-5" stroke="rgba(200,220,240,0.45)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════
+          BELOW FOLD — Page Showcase  (scroll-triggered)
+      ══════════════════════════════════════════════════════════ */}
+      <div
+        ref={showcase.ref}
+        style={{
+          background: 'linear-gradient(180deg, #000e1a 0%, #001220 50%, #000e1a 100%)',
+          padding: '6rem 2rem 7rem',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Subtle radial glow behind section */}
+        <div aria-hidden="true" style={{
+          position: 'absolute', top: '40%', left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '70vw', height: '70vw', maxWidth: 800, maxHeight: 800,
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(31,122,224,0.06) 0%, transparent 70%)',
+          pointerEvents: 'none',
+        }} />
+
+        <div style={{ maxWidth: '88rem', margin: '0 auto', position: 'relative' }}>
+
+          {/* Divider */}
+          <div className="hero-divider" style={{ marginBottom: '4.5rem' }} />
+
+          {/* Section heading */}
+          <div
+            style={{
+              marginBottom: '3rem',
+              opacity: showcase.visible ? 1 : 0,
+              transform: showcase.visible ? 'translateY(0)' : 'translateY(28px)',
+              transition: 'opacity 0.75s ease, transform 0.75s ease',
+            }}
+          >
+            <p style={{
+              fontSize: '0.72rem', color: 'rgba(155,190,215,0.55)',
+              letterSpacing: '0.12em', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.6rem',
+            }}>
+              Everything in one place
+            </p>
+            <h2 style={{
+              fontFamily: 'var(--font-display,"Instrument Serif",serif)',
+              fontSize: 'clamp(1.8rem, 4vw, 2.9rem)',
+              fontWeight: 400, color: '#fff', margin: 0,
+              letterSpacing: '-0.03em', lineHeight: 1.1,
+            }}>
+              Your full captain dashboard
+            </h2>
+          </div>
+
+          {/* Cards grid */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 210px), 1fr))',
+            gap: '1rem',
+          }}>
+            {PAGES.map((page, i) => (
+              <Link
+                key={page.href}
+                href={page.href}
+                className="page-card"
+                style={{
+                  opacity: showcase.visible ? 1 : 0,
+                  transform: showcase.visible ? 'translateY(0)' : 'translateY(36px)',
+                  transition: `opacity 0.6s ease ${0.1 + i * 0.1}s, transform 0.6s ease ${0.1 + i * 0.1}s`,
+                }}
+              >
+                <div className="page-card-icon" style={{ background: page.bg }}>
+                  {page.emoji}
+                </div>
+                <span style={{ fontSize: '0.68rem', color: 'rgba(155,200,235,0.55)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                  {page.tag}
+                </span>
+                <p className="page-card-title">{page.title}</p>
+                <p className="page-card-desc">{page.desc}</p>
+                <span className="page-card-arrow">Explore <span>→</span></span>
+              </Link>
+            ))}
+          </div>
+
+          {/* Bottom bar */}
+          <div
+            ref={bottomBar.ref}
+            style={{
+              marginTop: '4rem',
+              display: 'flex', flexWrap: 'wrap',
+              gap: '1rem', alignItems: 'center', justifyContent: 'space-between',
+              opacity: bottomBar.visible ? 1 : 0,
+              transform: bottomBar.visible ? 'translateY(0)' : 'translateY(20px)',
+              transition: 'opacity 0.65s ease 0.2s, transform 0.65s ease 0.2s',
+            }}
+          >
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
+              {[
+                { icon: '🔵', text: 'Built on Base' },
+                { icon: '🔒', text: 'Non-custodial' },
+                { icon: '⚡', text: 'Instant XP' },
+                { icon: '🌊', text: '100×100 Live Map' },
+              ].map(({ icon, text }) => (
+                <span key={text} style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                  fontSize: '0.78rem', color: 'rgba(175,200,218,0.6)', fontWeight: 600,
+                }}>
+                  {icon} {text}
+                </span>
+              ))}
+            </div>
+            <button
+              type="button" onClick={login} disabled={busy}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                fontSize: '0.85rem', color: '#fff',
+                background: 'linear-gradient(135deg, rgba(74,170,247,0.22), rgba(31,122,224,0.18))',
+                border: '1px solid rgba(74,170,247,0.3)', borderRadius: 999,
+                padding: '0.6rem 1.4rem',
+                cursor: busy ? 'not-allowed' : 'pointer',
+                fontWeight: 600, opacity: busy ? 0.6 : 1,
+                transition: 'transform 0.2s ease',
+              }}
+              onMouseEnter={(e) => { if (!busy) (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.04)'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'; }}
+            >
+              ⚓ {busy ? 'Connecting…' : 'Join as Captain'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
