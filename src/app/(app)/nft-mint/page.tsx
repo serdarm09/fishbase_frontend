@@ -15,6 +15,13 @@ import {
 // Smart Contract Setup
 const BOAT_NFT_ADDRESS = config.blockchain.contracts.boatNFT;
 const USDC_ADDRESS = config.blockchain.contracts.usdc;
+const GAME_CONTROLLER_ADDRESS = config.blockchain.contracts.gameController;
+
+const GAME_CONTROLLER_ABI = [
+  'function registerPlayer() external',
+  'function isRegistered(address player) view returns (bool)',
+];
+
 
 const BOAT_NFT_ABI = [
   'function mintBoat(uint8 boatType) external payable',
@@ -224,7 +231,21 @@ export default function NftMintPage() {
 
       let tx;
 
-      if (payment === 'ETH') {
+      if (bKey === 'DINGHY') {
+        if (boats.length > 0) {
+          throw new Error('You already own a boat! The Dinghy is reserved for new starter captains only.');
+        }
+        if (!isConfiguredAddress(GAME_CONTROLLER_ADDRESS)) {
+          throw new Error('Game Controller contract address is missing. Set NEXT_PUBLIC_GAME_CONTROLLER_ADDRESS in Vercel.');
+        }
+        const gameController = new Contract(GAME_CONTROLLER_ADDRESS, GAME_CONTROLLER_ABI, signer);
+        const isReg = await gameController.isRegistered(signerAddress);
+        if (isReg) {
+          throw new Error('You are already registered on the GameController and have claimed your starter boat.');
+        }
+        setSuccess('Claiming your starter Dinghy via GameController...');
+        tx = await gameController.registerPlayer();
+      } else if (payment === 'ETH') {
         const ethPrice = parseEther(priceConfig.eth);
         const balance = await provider.getBalance(signerAddress);
         
@@ -260,7 +281,7 @@ export default function NftMintPage() {
       }
 
       setSuccess('Boat minted successfully. Syncing with server...');
-      await nftApi.registerBoat(token, { tokenId, boatType: bKey, dailyXp: 1 });
+      await nftApi.registerBoat(token, { tokenId, boatType: bKey, dailyXp: bKey === 'DINGHY' ? 10 : 1 });
       await fetchData();
       setSuccess(`${boatLabel(bKey)} added to your fleet!`);
 
@@ -412,7 +433,8 @@ export default function NftMintPage() {
                 const isFree = BOAT_USD[bKey]?.free;
                 
                 const hasBoats = boats.length > 0;
-                const disableMint = false; // Everyone can mint now
+                const isStarter = bKey === 'DINGHY';
+                const disableMint = isStarter && hasBoats;
 
                 return (
                   <div key={boat.type} style={{ background: color.bg, border: `1px solid ${color.border}`, borderRadius: 16, padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
@@ -453,7 +475,13 @@ export default function NftMintPage() {
                         boxShadow: disableMint ? 'none' : '0 2px 4px rgba(0,0,0,0.1)'
                       }}
                     >
-                      {isMinting === bKey ? 'Minting...' : disableMint ? 'Already Owned' : `Mint ${boatLabel(bKey)}`}
+                      {isMinting === bKey
+                        ? 'Minting...'
+                        : disableMint
+                        ? 'Starter Claimed'
+                        : isStarter
+                        ? 'Claim Free Dinghy'
+                        : `Mint ${boatLabel(bKey)}`}
                     </button>
                   </div>
                 );

@@ -20,6 +20,7 @@ interface MapProps {
 
 type LatLng = { lat: number; lng: number };
 type WorldPoint = { x: number; y: number };
+type WaterCheck = 'water' | 'land' | 'unknown';
 
 const TILE_SIZE = 256;
 const MIN_ZOOM = 4;
@@ -93,7 +94,7 @@ const SeaMap: React.FC<MapProps> = ({
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const dragState = useRef<{ pointerId: number; x: number; y: number; center: LatLng } | null>(null);
   const didDrag = useRef(false);
-  const waterCache = useRef(new globalThis.Map<string, Promise<boolean>>());
+  const waterCache = useRef(new globalThis.Map<string, Promise<WaterCheck>>());
   const [center, setCenter] = useState<LatLng>(INITIAL_CENTER);
   const [zoom, setZoom] = useState(INITIAL_ZOOM);
   const [viewportSize, setViewportSize] = useState({ width: 960, height: 620 });
@@ -178,7 +179,7 @@ const SeaMap: React.FC<MapProps> = ({
     return worldToLatLng(world, zoom);
   };
 
-  const isWaterAt = async (latLng: LatLng) => {
+  const checkWaterAt = async (latLng: LatLng) => {
     const world = latLngToWorld(latLng, zoom);
     const tileX = Math.floor(world.x / TILE_SIZE);
     const tileY = Math.floor(world.y / TILE_SIZE);
@@ -189,7 +190,7 @@ const SeaMap: React.FC<MapProps> = ({
     if (!waterCache.current.has(cacheKey)) {
       waterCache.current.set(
         cacheKey,
-        new Promise<boolean>((resolve) => {
+        new Promise<WaterCheck>((resolve) => {
           const image = new Image();
           image.crossOrigin = 'anonymous';
           image.onload = () => {
@@ -199,13 +200,14 @@ const SeaMap: React.FC<MapProps> = ({
               canvas.height = TILE_SIZE;
               const ctx = canvas.getContext('2d', { willReadFrequently: true });
               if (!ctx) {
-                resolve(false);
+                resolve('unknown');
                 return;
               }
 
               ctx.drawImage(image, 0, 0);
               const sample = ctx.getImageData(clamp(pixelX - 2, 0, 251), clamp(pixelY - 2, 0, 251), 5, 5).data;
               let waterVotes = 0;
+              let landVotes = 0;
               let counted = 0;
 
               for (let index = 0; index < sample.length; index += 4) {
@@ -215,15 +217,31 @@ const SeaMap: React.FC<MapProps> = ({
                 const isLabel = r < 80 && g < 80 && b < 80;
                 if (isLabel) continue;
                 counted += 1;
-                if (b > r + 8 && b >= g - 4 && r < 235) waterVotes += 1;
+                if (b >= r + 2 && b >= g - 6 && r < 245) waterVotes += 1;
+                if (r > 235 && g > 235 && b > 235 && Math.abs(r - b) < 8) landVotes += 1;
               }
 
-              resolve(counted > 0 && waterVotes / counted >= 0.52);
+              if (counted === 0) {
+                resolve('unknown');
+                return;
+              }
+
+              if (waterVotes / counted >= 0.4) {
+                resolve('water');
+                return;
+              }
+
+              if (landVotes / counted >= 0.75) {
+                resolve('land');
+                return;
+              }
+
+              resolve('unknown');
             } catch {
-              resolve(false);
+              resolve('unknown');
             }
           };
-          image.onerror = () => resolve(false);
+          image.onerror = () => resolve('unknown');
           image.src = tileUrl(tileX, tileY, zoom);
         })
       );
@@ -233,7 +251,16 @@ const SeaMap: React.FC<MapProps> = ({
   };
 
   const handleMapClick = async (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!isPlacementMode) return;
+    if (!isPlacementMode) {
+      setMapMessage('Press Place Boat or Move Boat first, then click a sea point.');
+      return;
+    }
+
+    if (!onCellClick) {
+      setMapMessage('Boat placement is not available right now.');
+      return;
+    }
+
     if (didDrag.current) {
       didDrag.current = false;
       return;
@@ -249,10 +276,14 @@ const SeaMap: React.FC<MapProps> = ({
     }
 
     setMapMessage('Checking if this point is open water...');
-    const water = await isWaterAt(latLng);
-    if (!water) {
+    const water = await checkWaterAt(latLng);
+    if (water === 'land') {
       setMapMessage('That point looks like land. Choose a sea area.');
       return;
+    }
+
+    if (water === 'unknown') {
+      setMapMessage('Water check was inconclusive. Continuing with this sea point...');
     }
 
     onCellClick?.(grid.x, grid.y, latLng.lat, latLng.lng);
@@ -314,7 +345,9 @@ const SeaMap: React.FC<MapProps> = ({
         <div>
           <p className="text-sm font-semibold text-gray-800">Real Sea Map</p>
           <p className="text-xs text-gray-500">
-            {hoveredPoint
+            {isPlacementMode
+              ? mapMessage
+              : hoveredPoint
               ? `${hoveredPoint.lat.toFixed(4)}, ${hoveredPoint.lng.toFixed(4)} | grid ${hoveredPoint.x}, ${hoveredPoint.y}`
               : mapMessage}
           </p>
