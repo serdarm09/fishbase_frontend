@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { gameApi, leaderboardApi } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
+import { Fish, Target, Anchor, Sparkles, AlertTriangle, Star, Trophy, Crown, Medal } from 'lucide-react';
 
 type LeaderboardEntry = {
   rank: number;
@@ -235,7 +236,7 @@ export function FishingMiniGame() {
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            🎣 Quick Catch Challenge
+            <Fish size={24} className="text-blue-500" /> Quick Catch Challenge
           </h2>
           <p className="text-sm text-gray-600">
             Wait for the signal and pull the fishing line at the perfect moment to earn XP and climb the ranks.
@@ -259,29 +260,29 @@ export function FishingMiniGame() {
             {/* Phase indicator */}
             <p className="text-sm font-semibold text-blue-800 flex items-center gap-2">
               {phase === 'idle' && (
-                <span>🎯 Press start and watch the bobber.</span>
+                <span className="flex items-center gap-1.5"><Target size={16} className="text-blue-600" /> Press start and watch the bobber.</span>
               )}
               {phase === 'waiting' && (
-                <span>
-                  <span className="anim-bobber" aria-hidden="true">🪝</span>
-                  {' '}Hold steady… the fish is circling.
+                <span className="flex items-center gap-1.5">
+                  <Anchor size={16} className="anim-bobber text-blue-600" />
+                  Hold steady… the fish is circling.
                 </span>
               )}
               {phase === 'catch' && (
-                <span className="text-green-700 font-bold animate-pulse">
-                  🐟 Pull now! Tap the button to reel it in!
+                <span className="text-green-700 font-bold animate-pulse flex items-center gap-1.5">
+                  <Fish size={18} className="text-green-600" /> Pull now! Tap the button to reel it in!
                 </span>
               )}
               {phase === 'result' && score !== null && score >= 80 && (
-                <span className="text-amber-600 font-bold">
-                  ✨ Amazing timing! That was a golden catch.
+                <span className="text-amber-600 font-bold flex items-center gap-1.5">
+                  <Sparkles size={16} className="text-amber-500" /> Amazing timing! That was a golden catch.
                 </span>
               )}
               {phase === 'result' && score !== null && score < 80 && score > 0 && (
-                <span>🎣 Nice catch! Practice makes legendary captains.</span>
+                <span className="flex items-center gap-1.5"><Fish size={16} className="text-blue-600" /> Nice catch! Practice makes legendary captains.</span>
               )}
               {phase === 'result' && score === 0 && (
-                <span className="text-red-600">⚠️ Too soon! Wait for the splash next time.</span>
+                <span className="text-red-600 flex items-center gap-1.5"><AlertTriangle size={16} className="text-red-500" /> Too soon! Wait for the splash next time.</span>
               )}
             </p>
 
@@ -309,7 +310,7 @@ export function FishingMiniGame() {
               onClick={handleCatch}
               disabled={phase !== 'catch' || isSubmitting}
             >
-              {phase === 'catch' ? '🎣 Pull the Line!' : 'Wait for the Splash'}
+              {phase === 'catch' ? <span className="flex items-center gap-1.5"><Fish size={18} /> Pull the Line!</span> : 'Wait for the Splash'}
             </button>
             <button
               type="button"
@@ -333,8 +334,8 @@ export function FishingMiniGame() {
             <div key={scoreKey} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="ocean-card border bg-white/90 p-3 text-center anim-score-reveal anim-delay-1">
                 <p className="text-xs text-gray-500 uppercase tracking-wide">Score</p>
-                <p className={`text-2xl font-bold text-blue-700 ${isGolden ? 'anim-xp-pulse' : ''}`}>
-                  {isGolden ? '⭐ ' : ''}{score}
+                <p className={`text-2xl font-bold text-blue-700 flex items-center justify-center gap-1 ${isGolden ? 'anim-xp-pulse' : ''}`}>
+                  {isGolden ? <Star size={20} className="text-amber-500 fill-amber-500" /> : null}{score}
                 </p>
               </div>
               <div className="ocean-card border bg-white/90 p-3 text-center anim-score-reveal anim-delay-2">
@@ -365,7 +366,7 @@ export function FishingMiniGame() {
           <div className="ocean-card border bg-white/90 p-4 h-full flex flex-col gap-3">
             <div>
               <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                🏆 Fishing Leaderboard
+                <Trophy size={18} className="text-amber-500" /> Fishing Leaderboard
               </h3>
               <p className="text-xs text-gray-500">{leaderboardCaption}</p>
             </div>
@@ -386,8 +387,8 @@ export function FishingMiniGame() {
                   style={{ animationDelay: `${idx * 0.06}s` }}
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-blue-700 min-w-[28px]">
-                      {entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : `#${entry.rank}`}
+                    <span className="text-sm font-semibold text-blue-700 min-w-[28px] flex items-center justify-center">
+                      {entry.rank === 1 ? <Crown size={16} className="text-yellow-500" /> : entry.rank === 2 ? <Medal size={16} className="text-gray-400" /> : entry.rank === 3 ? <Medal size={16} className="text-amber-600" /> : `#${entry.rank}`}
                     </span>
                     <div className="flex flex-col">
                       <span className="text-sm font-semibold text-gray-700">

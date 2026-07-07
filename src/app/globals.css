@@ -802,7 +802,7 @@ body::after {
 }
 
 .live-map-viewport {
-  height: clamp(460px, 68vh, 760px);
+  height: clamp(400px, 58vh, 680px);
   position: relative;
   overflow: hidden;
   cursor: grab;

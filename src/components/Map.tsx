@@ -8,14 +8,20 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { BoatPlacement } from '@/types';
+import { BoatPlacement, BoostInfo } from '@/types';
+import BoatSVG, { type BoatTypeName } from '@/components/boats/BoatSVG';
+import { Anchor, MousePointerClick, RefreshCw, ZoomIn, ZoomOut, RotateCcw, Move, Plus } from 'lucide-react';
 
 interface MapProps {
   gridSize?: number;
   boats?: BoatPlacement[];
   onCellClick?: (x: number, y: number, lat: number, lng: number) => void;
   playerBoat?: BoatPlacement | null;
+  playerBoost?: BoostInfo | null;
   isPlacementMode?: boolean;
+  isLoading?: boolean;
+  canTogglePlacement?: boolean;
+  onTogglePlacement?: () => void;
 }
 
 type LatLng = { lat: number; lng: number };
@@ -89,8 +95,13 @@ const SeaMap: React.FC<MapProps> = ({
   boats = [],
   onCellClick,
   playerBoat,
+  playerBoost,
   isPlacementMode = false,
+  isLoading = false,
+  canTogglePlacement = true,
+  onTogglePlacement,
 }) => {
+  const boatType = playerBoat?.boatType as BoatTypeName | undefined;
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const dragState = useRef<{ pointerId: number; x: number; y: number; center: LatLng } | null>(null);
   const didDrag = useRef(false);
@@ -340,31 +351,88 @@ const SeaMap: React.FC<MapProps> = ({
   });
 
   return (
-    <div className="live-map-shell">
-      <div className="live-map-toolbar">
-        <div>
-          <p className="text-sm font-semibold text-gray-800">Real Sea Map</p>
-          <p className="text-xs text-gray-500">
-            {isPlacementMode
-              ? mapMessage
-              : hoveredPoint
-              ? `${hoveredPoint.lat.toFixed(4)}, ${hoveredPoint.lng.toFixed(4)} | grid ${hoveredPoint.x}, ${hoveredPoint.y}`
-              : mapMessage}
-          </p>
+    <div className="live-map-shell shadow-xl border border-blue-200/80 rounded-2xl overflow-hidden bg-white/95 backdrop-blur w-full">
+      {/* ── Unified Map Toolbar ─────────────────────────────── */}
+      <div className="live-map-toolbar flex flex-wrap items-center justify-between gap-4 p-4 bg-white/95 border-b border-blue-100">
+        <div className="flex items-center gap-3">
+          {boatType ? (
+            <BoatSVG type={boatType} size={38} />
+          ) : (
+            <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-500">
+              <Anchor size={20} />
+            </div>
+          )}
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-gray-800 text-sm sm:text-base flex items-center gap-1.5">
+                <Anchor size={16} className="text-blue-500" />
+                {playerBoat ? `Position (${playerBoat.x}, ${playerBoat.y})` : 'No boat placed yet'}
+              </span>
+              {playerBoat && (
+                <span className="text-xs bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded-full">
+                  Active
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {isPlacementMode
+                ? 'Click open sea tile to anchor'
+                : hoveredPoint
+                ? `Grid (${hoveredPoint.x}, ${hoveredPoint.y}) | Lat ${hoveredPoint.lat.toFixed(3)}, Lng ${hoveredPoint.lng.toFixed(3)}`
+                : playerBoat
+                ? 'Move every 24h to maintain streak & avoid XP decay'
+                : 'Place your boat to start earning daily XP'}
+            </p>
+          </div>
         </div>
-        <div className="map-controls" aria-label="Map controls">
-          <button type="button" onClick={() => setZoomLevel(zoom - 1)} aria-label="Zoom out">
-            -
-          </button>
-          <span>Z{zoom}</span>
-          <button type="button" onClick={() => setZoomLevel(zoom + 1)} aria-label="Zoom in">
-            +
-          </button>
-          <button type="button" onClick={resetView} aria-label="Reset map">
-            Reset
-          </button>
+
+        {/* Controls & Action Button */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="map-controls bg-slate-100 p-1 rounded-xl border border-slate-200 flex items-center gap-1">
+            <button type="button" onClick={() => setZoomLevel(zoom - 1)} aria-label="Zoom out" className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center hover:bg-slate-50 transition">
+              <ZoomOut size={15} className="text-slate-600" />
+            </button>
+            <span className="px-2 text-xs font-bold text-slate-600">Z{zoom}</span>
+            <button type="button" onClick={() => setZoomLevel(zoom + 1)} aria-label="Zoom in" className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center hover:bg-slate-50 transition">
+              <ZoomIn size={15} className="text-slate-600" />
+            </button>
+            <button type="button" onClick={resetView} aria-label="Reset map" className="px-2.5 h-8 rounded-lg bg-white shadow-sm text-xs font-semibold text-slate-600 hover:bg-slate-50 transition flex items-center gap-1">
+              <RotateCcw size={13} /> Reset
+            </button>
+          </div>
+
+          {canTogglePlacement && (
+            <button
+              onClick={onTogglePlacement}
+              disabled={isLoading}
+              type="button"
+              className={isPlacementMode ? 'btn-fish shadow-md animate-pulse' : 'primary-button'}
+              style={{ opacity: isLoading ? 0.6 : 1, cursor: isLoading ? 'not-allowed' : 'pointer' }}
+            >
+              {isLoading ? (
+                <span className="flex items-center gap-1.5"><RefreshCw size={15} className="animate-spin" /> Working...</span>
+              ) : isPlacementMode ? (
+                <span className="flex items-center gap-1.5"><MousePointerClick size={16} /> Cancel Placement</span>
+              ) : playerBoat ? (
+                <span className="flex items-center gap-1.5"><Move size={15} /> Move Boat</span>
+              ) : (
+                <span className="flex items-center gap-1.5"><Plus size={15} /> Place Boat</span>
+              )}
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Placement Mode Banner */}
+      {isPlacementMode && !isLoading && (
+        <div className="bg-amber-50/95 border-b border-amber-200/80 px-4 py-2 text-amber-900 text-xs sm:text-sm font-semibold flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <MousePointerClick size={18} className="text-amber-600 shrink-0 animate-bounce" />
+            <span>Click any open sea tile on the map to drop anchor there. A wallet transaction will confirm your placement.</span>
+          </div>
+          <span className="text-xs bg-amber-200/80 text-amber-950 px-2 py-0.5 rounded font-bold shrink-0">Placement Mode</span>
+        </div>
+      )}
 
       <div
         ref={viewportRef}
@@ -412,11 +480,15 @@ const SeaMap: React.FC<MapProps> = ({
         ))}
       </div>
 
-      <div className="live-map-footer">
-        <span><i className="legend-swatch sea" /> Click sea areas only</span>
-        <span><i className="legend-swatch player" /> Your boat</span>
-        <span>{boats.length} active boats</span>
-        <span>{mapMessage}</span>
+      <div className="live-map-footer flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 py-3 px-4 bg-slate-50/95 border-t border-slate-200/80">
+        <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-600">
+          <span className="flex items-center gap-1.5"><i className="legend-swatch sea" /> Sea areas</span>
+          <span className="flex items-center gap-1.5"><i className="legend-swatch player" /> Your boat</span>
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" /> {boats.length} active boats</span>
+        </div>
+        <div className="text-xs text-slate-500 flex items-center gap-1.5">
+          <span>💡 Move at least once every 24h to avoid XP decay.{playerBoost && playerBoost.level !== 'NONE' ? ` Boost: +${Math.round(playerBoost.multiplier * 100)}% XP active.` : ''}</span>
+        </div>
       </div>
     </div>
   );

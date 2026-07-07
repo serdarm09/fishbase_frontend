@@ -1,14 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { BrowserProvider, Contract } from 'ethers';
 import { useAuth } from '@/context/AuthContext';
 import { gameApi } from '@/services/api';
-import config from '@/lib/config';
 import type { UserProfile } from '@/types';
-import { Gift, Calendar, CheckCircle2, Clock, Anchor, Zap } from 'lucide-react';
+import { Gift, Calendar, CheckCircle2, Clock, Anchor, Zap, Wind, Waves, Fish, CloudRain, Trophy, Star, Sparkles } from 'lucide-react';
 
 dayjs.extend(relativeTime);
 
@@ -19,27 +17,14 @@ type ClaimState = {
 };
 
 const streakRewards = [
-  { day: 1, multiplier: 1.0, label: 'Starting Line',      emoji: '⚓' },
-  { day: 2, multiplier: 1.1, label: 'Tailwind Boost',     emoji: '💨' },
-  { day: 3, multiplier: 1.2, label: 'Caught the Current', emoji: '🌊' },
-  { day: 4, multiplier: 1.3, label: 'Lucky Net',          emoji: '🎣' },
-  { day: 5, multiplier: 1.4, label: 'Storm Resilience',   emoji: '⛈️' },
-  { day: 6, multiplier: 1.6, label: 'Epic Catch',         emoji: '🐟' },
-  { day: 7, multiplier: 2.0, label: 'Golden Tide',        emoji: '🏆' },
+  { day: 1, multiplier: 1.0, label: 'Starting Line',      icon: Anchor },
+  { day: 2, multiplier: 1.1, label: 'Tailwind Boost',     icon: Wind },
+  { day: 3, multiplier: 1.2, label: 'Caught the Current', icon: Waves },
+  { day: 4, multiplier: 1.3, label: 'Lucky Net',          icon: Fish },
+  { day: 5, multiplier: 1.4, label: 'Storm Resilience',   icon: CloudRain },
+  { day: 6, multiplier: 1.6, label: 'Epic Catch',         icon: Sparkles },
+  { day: 7, multiplier: 2.0, label: 'Golden Tide',        icon: Trophy },
 ];
-
-type EthereumProvider = {
-  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-};
-
-const GAME_CONTROLLER_ADDRESS = config.blockchain.contracts.gameController;
-const GAME_CONTROLLER_ABI = ['function claimDaily() external'];
-
-const getEthereum = () =>
-  (window as typeof window & { ethereum?: EthereumProvider }).ethereum;
-
-const isConfiguredAddress = (address?: string) =>
-  Boolean(address && !/^0x0{40}$/i.test(address));
 
 export default function DailyClaimPage() {
   const { token, updateUser } = useAuth();
@@ -80,28 +65,6 @@ export default function DailyClaimPage() {
     fetchProfile();
   }, [fetchProfile]);
 
-  const sendClaimTransaction = async () => {
-    const ethereum = getEthereum();
-    if (!ethereum) throw new Error('Open FishBase in Base App or a wallet browser.');
-    if (!isConfiguredAddress(GAME_CONTROLLER_ADDRESS)) {
-      throw new Error('Game Controller contract address is missing.');
-    }
-
-    try {
-      await ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x2105' }] });
-    } catch {
-      // Base App and some wallets are already scoped to Base.
-    }
-
-    const provider = new BrowserProvider(ethereum);
-    await provider.send('eth_requestAccounts', []);
-    const signer = await provider.getSigner();
-    const contract = new Contract(GAME_CONTROLLER_ADDRESS, GAME_CONTROLLER_ABI, signer);
-    const tx = await contract.claimDaily();
-    const receipt = await tx.wait();
-    return receipt?.hash || tx.hash;
-  };
-
   const handleClaim = async () => {
     if (!token) return;
 
@@ -110,10 +73,8 @@ export default function DailyClaimPage() {
       setError(null);
       setSuccess(null);
 
-      setSuccess('Confirm the daily claim transaction in your wallet...');
-      const claimTxHash = await sendClaimTransaction();
-      setSuccess('Transaction confirmed. Syncing reward...');
-      const result = await gameApi.claimDaily(token, { claimTxHash });
+      setSuccess('Claiming your daily XP...');
+      const result = await gameApi.claimDaily(token);
       const claim = result.claim;
 
       // Trigger burst animation
@@ -256,13 +217,17 @@ export default function DailyClaimPage() {
         >
           {isClaiming ? (
             <span className="flex items-center gap-2">
-              <span className="anim-bobber" aria-hidden="true">🎣</span>
+              <Fish size={20} className="anim-bobber text-amber-300" />
               Reeling in rewards…
             </span>
           ) : claimState.canClaim ? (
-            '🎁 Claim XP Now'
+            <span className="flex items-center gap-2">
+              <Gift size={20} /> Claim XP Now
+            </span>
           ) : (
-            '⏳ On Cooldown'
+            <span className="flex items-center gap-2">
+              <Clock size={20} /> On Cooldown
+            </span>
           )}
         </button>
 
@@ -285,6 +250,7 @@ export default function DailyClaimPage() {
             const isCurrent  = streakPosition === reward.day;
             const isActive   = isCurrent && claimState.canClaim;
             const isGolden   = reward.day === 7;
+            const RewardIcon = reward.icon;
 
             return (
               <div
@@ -311,7 +277,9 @@ export default function DailyClaimPage() {
                   </span>
                 </div>
 
-                <span className="text-2xl mb-1" aria-hidden="true">{reward.emoji}</span>
+                <div className="mb-2 text-blue-500">
+                  <RewardIcon size={26} className={isActive ? 'text-blue-600 animate-pulse' : isCompleted ? 'text-green-600' : 'text-gray-500'} />
+                </div>
                 <p className="text-xs text-gray-500 font-medium leading-tight mb-3 flex-grow">
                   {reward.label}
                 </p>
@@ -324,7 +292,7 @@ export default function DailyClaimPage() {
                     </>
                   ) : isCurrent ? (
                     <>
-                      <span className="anim-bobber text-base" aria-hidden="true">⭐</span>
+                      <Star size={14} className="text-amber-500 anim-bobber fill-amber-500" />
                       <span className="text-amber-600">Today</span>
                     </>
                   ) : (

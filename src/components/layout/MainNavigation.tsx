@@ -1,24 +1,26 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
+import { User, Map as MapIcon, Trophy, Anchor, Gift, LogOut } from 'lucide-react';
 
 type NavItem = {
   href: string;
   label: string;
   caption: string;
   mark: string;
-  emoji: string;
+  icon: React.FC<{ size?: number; className?: string }>;
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { href: '/profile',     label: 'Profile',   caption: 'Captain overview',  mark: 'PR', emoji: '👤' },
-  { href: '/map',         label: 'Sea Map',   caption: 'Deploy your boat',  mark: 'MP', emoji: '🗺️' },
-  { href: '/leaderboard', label: 'Leaders',   caption: 'Top captains',      mark: 'LB', emoji: '🏆' },
-  { href: '/nft-mint',    label: 'NFT Fleet', caption: 'Upgrade boats',     mark: 'NF', emoji: '⛵' },
-  { href: '/daily-claim', label: 'Daily XP',  caption: 'Streak boosts',     mark: 'DX', emoji: '🎁' },
+  { href: '/profile',     label: 'Profile',   caption: 'Captain overview',  mark: 'PR', icon: User },
+  { href: '/map',         label: 'Sea Map',   caption: 'Deploy your boat',  mark: 'MP', icon: MapIcon },
+  { href: '/leaderboard', label: 'Leaders',   caption: 'Top captains',      mark: 'LB', icon: Trophy },
+  { href: '/nft-mint',    label: 'NFT Fleet', caption: 'Upgrade boats',     mark: 'NF', icon: Anchor },
+  { href: '/daily-claim', label: 'Daily XP',  caption: 'Streak boosts',     mark: 'DX', icon: Gift },
 ];
 
 /* ── Top navigation (dark glassmorphic) ─────────────────────────── */
@@ -48,44 +50,35 @@ export const MainNavigation = () => {
           href="/profile"
           style={{
             display: 'flex', alignItems: 'center', gap: '0.5rem',
-            textDecoration: 'none',
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: 999, padding: '0.5rem 0.9rem',
-            transition: 'background 0.2s ease',
+            textDecoration: 'none', color: '#fff', fontWeight: 800,
+            fontSize: '1.25rem', letterSpacing: '-0.03em',
           }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(255,255,255,0.1)'; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(255,255,255,0.06)'; }}
         >
           <span style={{
-            display: 'inline-grid', placeItems: 'center',
-            width: '1.8rem', height: '1.8rem', borderRadius: '50%',
-            background: 'linear-gradient(135deg, #4AAAF7, #1F7AE0)',
-            fontSize: '0.6rem', fontWeight: 900, color: '#fff',
-            letterSpacing: '0.02em',
+            background: 'linear-gradient(135deg, #4AAAF7 0%, #1F7AE0 100%)',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+            fontWeight: 900,
           }}>
-            FB
+            FishBase
           </span>
-          <div>
-            <p style={{ fontSize: '0.82rem', fontWeight: 700, color: '#fff', lineHeight: 1 }}>FishBase</p>
-            <p style={{ fontSize: '0.68rem', color: 'rgba(175,200,218,0.6)', lineHeight: 1, marginTop: '0.15rem' }}>Base App</p>
-          </div>
+          <span style={{
+            fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase',
+            letterSpacing: '0.08em', padding: '0.15rem 0.45rem',
+            borderRadius: 999, background: 'rgba(74, 170, 247, 0.15)',
+            color: '#4AAAF7', border: '1px solid rgba(74, 170, 247, 0.3)',
+          }}>
+            L2
+          </span>
         </Link>
-
-        {user && (
-          <div className="hidden-sm" style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: '0.72rem', color: 'rgba(175,200,218,0.55)' }}>Captain</span>
-            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff' }}>{user.username}</span>
-          </div>
-        )}
       </div>
 
-      {/* Desktop nav */}
-      <nav className="hidden-sm" style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+      {/* Center Nav Items */}
+      <nav style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href;
+          const IconComponent = item.icon;
           return (
-            <Link key={item.href} href={item.href} style={{ position: 'relative', textDecoration: 'none' }}>
+            <Link key={item.href} href={item.href} style={{ textDecoration: 'none' }}>
               <motion.div
                 whileHover={{ y: -2 }}
                 style={{
@@ -101,10 +94,10 @@ export const MainNavigation = () => {
                 <span style={{
                   fontSize: '0.82rem', fontWeight: 700,
                   color: isActive ? '#fff' : 'rgba(175,200,218,0.70)',
-                  display: 'flex', alignItems: 'center', gap: '0.35rem',
+                  display: 'flex', alignItems: 'center', gap: '0.4rem',
                   transition: 'color 0.2s ease',
                 }}>
-                  <span style={{ fontSize: '0.72rem' }}>{item.emoji}</span>
+                  <IconComponent size={15} />
                   {item.label}
                 </span>
                 <span style={{ fontSize: '0.65rem', color: isActive ? 'rgba(175,200,218,0.6)' : 'rgba(175,200,218,0.38)', marginTop: '0.08rem' }}>
@@ -122,7 +115,7 @@ export const MainNavigation = () => {
           href="/daily-claim"
           className="hidden-sm"
           style={{
-            display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+            display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
             background: 'linear-gradient(135deg, rgba(74,170,247,0.2), rgba(31,122,224,0.15))',
             border: '1px solid rgba(74,170,247,0.28)',
             color: '#fff', borderRadius: 999,
@@ -132,7 +125,7 @@ export const MainNavigation = () => {
           onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.transform = 'scale(1.04)'; }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.transform = 'scale(1)'; }}
         >
-          🎁 Daily XP
+          <Gift size={15} /> Daily XP
         </Link>
 
         <button
@@ -140,7 +133,7 @@ export const MainNavigation = () => {
           type="button"
           aria-label="Sign out"
           style={{
-            display: 'flex', alignItems: 'center', gap: '0.35rem',
+            display: 'flex', alignItems: 'center', gap: '0.4rem',
             background: 'rgba(255,255,255,0.05)',
             border: '1px solid rgba(255,255,255,0.1)',
             color: 'rgba(175,200,218,0.75)', borderRadius: 999,
@@ -150,7 +143,7 @@ export const MainNavigation = () => {
           onMouseEnter={(e) => { const b = e.currentTarget as HTMLButtonElement; b.style.background='rgba(255,80,80,0.1)'; b.style.color='#F87171'; }}
           onMouseLeave={(e) => { const b = e.currentTarget as HTMLButtonElement; b.style.background='rgba(255,255,255,0.05)'; b.style.color='rgba(175,200,218,0.75)'; }}
         >
-          <span className="sign-out-mark" aria-hidden="true" style={{ fontSize: '0.6rem', fontWeight: 900 }}>SO</span>
+          <LogOut size={14} />
           <span className="sign-out-text">Sign Out</span>
         </button>
       </div>
@@ -176,6 +169,7 @@ export const BottomNavigation = () => {
     >
       {NAV_ITEMS.map((item) => {
         const isActive = pathname === item.href;
+        const IconComponent = item.icon;
         return (
           <Link
             key={item.href}
@@ -192,10 +186,14 @@ export const BottomNavigation = () => {
                   : 'rgba(255,255,255,0.06)',
                 border: isActive ? 'none' : '1px solid rgba(255,255,255,0.1)',
                 color: isActive ? '#fff' : 'rgba(175,200,218,0.7)',
-                fontSize: '1.1rem',
+                display: 'grid',
+                placeItems: 'center',
+                width: 38,
+                height: 38,
+                borderRadius: 12,
               }}
             >
-              {item.emoji}
+              <IconComponent size={18} />
             </span>
             <span
               className="bottom-nav-label"

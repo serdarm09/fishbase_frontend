@@ -259,3 +259,38 @@ export function getDaysBetween(date1: Date, date2: Date): number {
   const oneDay = 24 * 60 * 60 * 1000;
   return Math.floor((date2.getTime() - date1.getTime()) / oneDay);
 }
+
+/**
+ * Switch wallet to Base Mainnet (8453), or automatically add it if unrecognized (error 4902).
+ */
+export async function ensureBaseNetwork(ethereum: any): Promise<void> {
+  if (!ethereum) return;
+  const chainIdHex = '0x2105'; // 8453
+  try {
+    await ethereum.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: chainIdHex }],
+    });
+  } catch (err: any) {
+    if (err.code === 4902 || err?.data?.originalError?.code === 4902 || err?.message?.includes('4902') || err?.message?.includes('unrecognized') || err?.message?.includes('not added')) {
+      try {
+        await ethereum.request({
+          method: 'wallet_addEthereumChain',
+          params: [
+            {
+              chainId: chainIdHex,
+              chainName: 'Base Mainnet',
+              nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+              rpcUrls: ['https://mainnet.base.org', 'https://base.llamarpc.com'],
+              blockExplorerUrls: ['https://basescan.org'],
+            },
+          ],
+        });
+      } catch (addError) {
+        console.error('Failed to add Base Mainnet to wallet:', addError);
+      }
+    } else {
+      console.warn('Network switch warning:', err);
+    }
+  }
+}

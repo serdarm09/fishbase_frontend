@@ -277,4 +277,4 @@ export const BOAT_CONFIGS: Record<BoatType, BoatConfig> = {
 };
 
 export const GRID_SIZE = 100;
-export const PLACEMENT_FEE = '0.001'; // ETH
+export const PLACEMENT_FEE = '0'; // ETH; users only pay Base network gas by default

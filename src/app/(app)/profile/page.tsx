@@ -7,6 +7,7 @@ import { gameApi, nftApi } from '@/services/api';
 import { StatCard } from '@/components/dashboard/StatCard';
 import type { UserProfile, OwnedBoat, BoostInfo } from '@/types';
 import BoatSVG, { boatLabel, type BoatTypeName } from '@/components/boats/BoatSVG';
+import { Fish, Flame, Anchor, Gift, Calendar, Map as MapIcon, Award, CheckCircle, Shield } from 'lucide-react';
 
 const numberFormatter = new Intl.NumberFormat('en-US');
 

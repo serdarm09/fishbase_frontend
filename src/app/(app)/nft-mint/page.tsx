@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { BrowserProvider, Contract, Interface, parseEther, parseUnits } from 'ethers';
 import { nftApi } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
+import { ensureBaseNetwork } from '@/utils/helpers';
 import config from '@/lib/config';
 import type { BoatType } from '@/types';
 import BoatSVG, { BOAT_COLORS, boatLabel, type BoatTypeName } from '@/components/boats/BoatSVG';
@@ -214,12 +215,8 @@ export default function NftMintPage() {
       setError(null);
       setSuccess(null);
 
-      // Switch to Base Mainnet
-      try {
-        await ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x2105' }] });
-      } catch (e) {
-        // Ignore if already on Base or unsupported
-      }
+      // Ensure wallet is on Base Mainnet
+      await ensureBaseNetwork(ethereum);
 
       const provider = new BrowserProvider(ethereum);
       await provider.send('eth_requestAccounts', []);

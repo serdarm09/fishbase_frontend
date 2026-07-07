@@ -5,6 +5,7 @@ import { BrowserProvider } from 'ethers';
 import { useRouter } from 'next/navigation';
 import { authApi } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
+import { ensureBaseNetwork } from '@/utils/helpers';
 
 type EthereumProvider = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
@@ -20,14 +21,14 @@ interface WalletConnectProps {
 export function WalletConnect({ className }: WalletConnectProps) {
   const router = useRouter();
   const { setSession } = useAuth();
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const handleWalletLogin = async () => {
     const ethereum = getEthereumProvider();
     if (!ethereum) {
-      setError('No wallet provider found. Open FishBase in Base App or a wallet browser.');
+      setError('No wallet detected. Please install MetaMask or Coinbase Wallet.');
       return;
     }
 
@@ -36,17 +37,9 @@ export function WalletConnect({ className }: WalletConnectProps) {
       setError(null);
       setStatusMessage('Connecting wallet...');
 
+      await ensureBaseNetwork(ethereum);
       const provider = new BrowserProvider(ethereum);
       await provider.send('eth_requestAccounts', []);
-
-      try {
-        await ethereum.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: '0x2105' }],
-        });
-      } catch {
-        // Base App and some mobile wallets are already scoped to Base.
-      }
 
       const signer = await provider.getSigner();
       const walletAddress = await signer.getAddress();

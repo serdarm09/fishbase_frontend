@@ -19,7 +19,11 @@ async function request<T>(path: string, options: FetchOptions = {}): Promise<T> 
     },
   });
 
-  const data = await response.json();
+  const contentType = response.headers.get('content-type') || '';
+  const isJson = contentType.includes('application/json');
+  const data = isJson
+    ? await response.json().catch(() => ({}))
+    : { error: await response.text() };
 
   if (!response.ok || data.success === false) {
     const errorMessage = data.error || data.message || 'Request failed';

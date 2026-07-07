@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BrowserProvider, Contract, parseEther } from 'ethers';
+import { BrowserProvider, Contract, formatEther, parseEther } from 'ethers';
 import { useAuth } from '@/context/AuthContext';
+import { ensureBaseNetwork } from '@/utils/helpers';
 import GameMap from '@/components/GameMap';
 import { gameApi } from '@/services/api';
 import config from '@/lib/config';
@@ -34,12 +35,17 @@ const getEthereum = () =>
   (window as typeof window & { ethereum?: EthereumProvider }).ethereum;
 
 const GAME_CONTROLLER_ADDRESS = config.blockchain.contracts.gameController;
+const BOAT_NFT_ADDRESS = config.blockchain.contracts.boatNFT;
 const GAME_CONTROLLER_ABI = [
   'function registerPlayer() external',
   'function isRegistered(address player) view returns (bool)',
+  'function placementFee() view returns (uint256)',
+  'function isPositionOccupied(uint256 x, uint256 y) view returns (bool)',
   'function placeBoat(uint256 x, uint256 y) external payable',
   'function moveBoat(uint256 newX, uint256 newY) external payable',
-  'function claimDaily() external',
+];
+const BOAT_NFT_ABI = [
+  'function getActiveBoat(address user) view returns (uint256 tokenId, uint8 boatType, uint256 dailyXp, string memory name)',
 ];
 
 const isConfiguredAddress = (address?: string) =>
@@ -183,16 +189,14 @@ export default function MapPage() {
       throw new Error('Game Controller contract address is missing.');
     }
 
-    try {
-      await ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x2105' }] });
-    } catch { /* already on Base */ }
+    await ensureBaseNetwork(ethereum);
 
     const provider = new BrowserProvider(ethereum);
     await provider.send('eth_requestAccounts', []);
     const signer = await provider.getSigner();
     const signerAddress = await signer.getAddress();
     const contract = new Contract(GAME_CONTROLLER_ADDRESS, GAME_CONTROLLER_ABI, signer);
-    return { contract, signerAddress };
+    return { contract, provider, signer, signerAddress };
   };
 
   const ensureRegistered = async (contract: Contract, signerAddress: string) => {
@@ -202,22 +206,41 @@ export default function MapPage() {
     setSuccessMessage('Registering player onchain...');
     const tx = await contract.registerPlayer();
     await tx.wait();
+
+    const registeredAfter = await contract.isRegistered(signerAddress);
+    if (!registeredAfter) {
+      throw new Error('Player registration was not confirmed onchain. Please try again.');
+    }
   };
 
   const sendPlacementTransaction = async (x: number, y: number, isMove: boolean) => {
-    const { contract, signerAddress } = await getGameController();
+    const { contract, provider, signer, signerAddress } = await getGameController();
     await ensureRegistered(contract, signerAddress);
 
-    const tx = isMove
-      ? await contract.moveBoat(x, y, { value: parseEther(config.game.placementFee) })
-      : await contract.placeBoat(x, y, { value: parseEther(config.game.placementFee) });
-    const receipt = await tx.wait();
-    return receipt?.hash || tx.hash;
-  };
+    const isOccupied = await contract.isPositionOccupied(x, y);
+    if (isOccupied) {
+      throw new Error(`Selected map cell (${x}, ${y}) is already occupied. Pick another sea point.`);
+    }
 
-  const sendClaimTransaction = async () => {
-    const { contract } = await getGameController();
-    const tx = await contract.claimDaily();
+    if (!isConfiguredAddress(BOAT_NFT_ADDRESS)) {
+      throw new Error('Boat NFT contract address is missing.');
+    }
+
+    const boatNft = new Contract(BOAT_NFT_ADDRESS, BOAT_NFT_ABI, signer);
+    const activeBoat = await boatNft.getActiveBoat(signerAddress);
+    if (BigInt(activeBoat[0]) === 0n) {
+      throw new Error('No active boat found onchain. Go to the Hangar and activate or mint a boat first.');
+    }
+
+    const fee = await contract.placementFee().catch(() => parseEther(config.game.placementFee));
+    const balance = await provider.getBalance(signerAddress);
+    if (balance < fee) {
+      throw new Error(`Insufficient Base ETH for map placement fee. Required: ${formatEther(fee)} ETH.`);
+    }
+
+    const tx = isMove
+      ? await contract.moveBoat(x, y, { value: fee })
+      : await contract.placeBoat(x, y, { value: fee });
     const receipt = await tx.wait();
     return receipt?.hash || tx.hash;
   };
@@ -259,10 +282,8 @@ export default function MapPage() {
     setSuccessMessage(null);
 
     try {
-      setSuccessMessage('Confirm the daily claim transaction in your wallet...');
-      const claimTxHash = await sendClaimTransaction();
-      setSuccessMessage('Transaction confirmed. Syncing reward...');
-      const res = await gameApi.claimDaily(token, { claimTxHash });
+      setSuccessMessage('Claiming daily XP...');
+      const res = await gameApi.claimDaily(token);
       const xpEarned = (res as any)?.xpEarned ?? (res as any)?.claim?.xpEarned ?? activeBoatInfo.dailyXp;
       setSuccessMessage(`+${xpEarned} XP claimed. Streak: ${(activeBoatInfo.currentStreak ?? 0) + 1} days`);
       await fetchMap();

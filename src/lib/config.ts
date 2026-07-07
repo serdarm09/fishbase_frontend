@@ -23,7 +23,7 @@ export const config = {
   // Game Settings
   game: {
     gridSize: 100,
-    placementFee: '0.001', // ETH
+    placementFee: '0', // ETH; users only pay Base network gas by default
     xpDecayRate: 0.05, // 5% per day
     movementBonusDays: 3,
     movementBonusMultiplier: 2.0, // 100% bonus

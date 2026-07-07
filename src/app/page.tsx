@@ -4,8 +4,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { ensureBaseNetwork } from '@/utils/helpers';
 import { BrowserProvider } from 'ethers';
 import { authApi } from '@/services/api';
+import { Anchor, Wallet, Map as MapIcon, Gift, Trophy, AlertTriangle, Compass } from 'lucide-react';
 
 /* ── 10 Gallery Images & Game Details (in order) ─────────────────── */
 const GALLERY_ITEMS = [
@@ -116,11 +118,9 @@ function useHeroLogin() {
     try {
       setBusy(true); setError(null);
       setStatus('Connecting wallet…');
+      await ensureBaseNetwork(ethereum);
       const provider = new BrowserProvider(ethereum);
       await provider.send('eth_requestAccounts', []);
-      try {
-        await ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x2105' }] });
-      } catch { /* already on Base */ }
       const signer = await provider.getSigner();
       const walletAddress = await signer.getAddress();
       setStatus('Preparing secure sign-in…');
@@ -681,7 +681,7 @@ export default function LandingPage() {
             onMouseEnter={(e) => { if (!busy) (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.05)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'; }}
           >
-            {busy ? '⏳ Connecting…' : '⚓ Begin Journey'}
+            {busy ? 'Connecting…' : <span className="flex items-center gap-1.5"><Anchor size={16} /> Begin Journey</span>}
           </button>
         </nav>
 
@@ -706,7 +706,7 @@ export default function LandingPage() {
                 width: 'fit-content', letterSpacing: '0.06em', fontWeight: 600,
               }}
             >
-              🔵 Base Mainnet · Chain ID 8453
+              <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse inline-block" /> Base Mainnet · Chain ID 8453
             </span>
 
             <h1 className="hero-heading animate-fade-rise-delay">
@@ -745,7 +745,7 @@ export default function LandingPage() {
                 onMouseEnter={(e) => { if (!busy) (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.04)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'; }}
               >
-                {busy ? '⏳ Connecting…' : '⚓ Begin Journey'}
+                {busy ? 'Connecting…' : <span className="flex items-center gap-2"><Anchor size={18} /> Begin Journey</span>}
               </button>
               <Link
                 href="/leaderboard"
@@ -778,7 +778,7 @@ export default function LandingPage() {
               type="button" onClick={login} disabled={busy}
               className="btn-hero-connect"
             >
-              {busy ? '⏳ Connecting…' : '🔗 Connect Base Wallet'}
+              {busy ? 'Connecting…' : <span className="flex items-center justify-center gap-2"><Wallet size={16} /> Connect Base Wallet</span>}
             </button>
 
             {status && (
@@ -787,8 +787,8 @@ export default function LandingPage() {
               </p>
             )}
             {error && (
-              <p style={{ fontSize: '0.78rem', color: '#F87171', marginTop: '0.65rem', lineHeight: 1.45 }}>
-                ⚠️ {error}
+              <p style={{ fontSize: '0.78rem', color: '#F87171', marginTop: '0.65rem', lineHeight: 1.45, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <AlertTriangle size={14} className="inline text-red-400" /> {error}
               </p>
             )}
 
@@ -799,11 +799,11 @@ export default function LandingPage() {
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
               {[
-                { href: '/map',         label: '🗺️ Sea Map' },
-                { href: '/daily-claim', label: '🎁 Daily XP' },
-                { href: '/nft-mint',    label: '⛵ NFT Fleet' },
-                { href: '/leaderboard', label: '🏆 Rankings' },
-              ].map(({ href, label }) => (
+                { href: '/map',         label: 'Sea Map', icon: MapIcon },
+                { href: '/daily-claim', label: 'Daily XP', icon: Gift },
+                { href: '/nft-mint',    label: 'NFT Fleet', icon: Anchor },
+                { href: '/leaderboard', label: 'Rankings', icon: Trophy },
+              ].map(({ href, label, icon: IconComp }) => (
                 <Link
                   key={href} href={href}
                   style={{
@@ -811,10 +811,12 @@ export default function LandingPage() {
                     textDecoration: 'none', background: 'rgba(255,255,255,0.06)',
                     border: '1px solid rgba(255,255,255,0.1)', borderRadius: 999,
                     padding: '0.35rem 0.75rem', transition: 'background 0.2s, color 0.2s', fontWeight: 600,
+                    display: 'flex', alignItems: 'center', gap: '0.35rem'
                   }}
                   onMouseEnter={(e) => { const a = e.currentTarget as HTMLAnchorElement; a.style.background='rgba(255,255,255,0.13)'; a.style.color='#fff'; }}
                   onMouseLeave={(e) => { const a = e.currentTarget as HTMLAnchorElement; a.style.background='rgba(255,255,255,0.06)'; a.style.color='rgba(195,220,240,0.78)'; }}
                 >
+                  <IconComp size={13} />
                   {label}
                 </Link>
               ))}
