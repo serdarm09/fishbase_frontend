@@ -126,8 +126,8 @@ export default function LeaderboardPage() {
               {[
                 { icon: <Users size={20} className="text-blue-600" />,   label: 'Total captains',  value: formatNumber(stats.totalPlayers || 0), helper: 'Active players exploring FishBase', accent: 'blue' as const },
                 { icon: <Ship size={20} className="text-amber-500" />,   label: 'Boats on map',    value: formatNumber(stats.totalBoats || 0),   helper: 'Active vessels in the sea map',     accent: 'sun'  as const },
-                { icon: <Star size={20} className="text-teal-600" />,    label: 'XP leader',       value: stats.topXp?.username || '—',          helper: `${formatNumber(stats.topXp?.value || 0)} XP`, accent: 'green' as const },
-                { icon: <Flame size={20} className="text-purple-600" />, label: 'Streak champion', value: stats.topStreak?.username || '—',      helper: `${formatNumber(stats.topStreak?.value || 0)} days`, accent: 'purple' as const },
+                { icon: <Star size={20} className="text-teal-600" />,    label: 'XP leader',       value: stats.topXp?.username || '-',          helper: `${formatNumber(stats.topXp?.value || 0)} XP`, accent: 'green' as const },
+                { icon: <Flame size={20} className="text-purple-600" />, label: 'Streak champion', value: stats.topStreak?.username || '-',      helper: `${formatNumber(stats.topStreak?.value || 0)} days`, accent: 'purple' as const },
               ].map((card, i) => (
                 <div
                   key={card.label}
@@ -235,7 +235,7 @@ export default function LeaderboardPage() {
                     </div>
                   </div>
                   {entry.rank === 1 && (
-                    <span className="text-lg anim-bobber" aria-hidden="true">🔥</span>
+                    <Flame size={18} className="text-orange-500 anim-bobber" aria-hidden="true" />
                   )}
                 </div>
               ))}
@@ -256,7 +256,7 @@ export default function LeaderboardPage() {
               {fishingRank && (
                 <span className="chip flex items-center gap-1">
                   <Medal size={14} className="text-blue-600" /> Your rank #{fishingRank}
-                  {fishingHighScore ? ` • High score ${fishingHighScore}` : ''}
+                  {fishingHighScore ? ` - High score ${fishingHighScore}` : ''}
                 </span>
               )}
             </div>
@@ -284,7 +284,7 @@ export default function LeaderboardPage() {
                     </div>
                   </div>
                   {entry.rank === 1 && (
-                    <span className="text-lg anim-bobber" aria-hidden="true">🎣</span>
+                    <Fish size={18} className="text-teal-600 anim-bobber" aria-hidden="true" />
                   )}
                 </div>
               ))}

@@ -22,7 +22,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div
-      className="app-layout"
+      className="app-layout app-ocean-stage"
       style={{
         minHeight: '100vh',
         background: 'linear-gradient(160deg, #000e1a 0%, #001828 40%, #00101f 100%)',
@@ -52,7 +52,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         style={{ position: 'relative', zIndex: 1 }}
       >
         <MainNavigation />
-        <main>{children}</main>
+        <main className="app-main-stage">{children}</main>
       </div>
 
       <BottomNavigation />

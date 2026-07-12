@@ -111,6 +111,7 @@ const SeaMap: React.FC<MapProps> = ({
   const [viewportSize, setViewportSize] = useState({ width: 960, height: 620 });
   const [hoveredPoint, setHoveredPoint] = useState<{ lat: number; lng: number; x: number; y: number } | null>(null);
   const [mapMessage, setMapMessage] = useState('Use + / - or mouse wheel to zoom. Drag the real map to explore.');
+  const [selectedBoatId, setSelectedBoatId] = useState<string | null>(null);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -263,6 +264,7 @@ const SeaMap: React.FC<MapProps> = ({
 
   const handleMapClick = async (event: React.MouseEvent<HTMLDivElement>) => {
     if (!isPlacementMode) {
+      setSelectedBoatId(null);
       setMapMessage('Press Place Boat or Move Boat first, then click a sea point.');
       return;
     }
@@ -281,8 +283,10 @@ const SeaMap: React.FC<MapProps> = ({
     if (!latLng) return;
     const grid = latLngToGrid(latLng, gridSize);
 
-    if (occupiedLookup.has(`${grid.x}-${grid.y}`)) {
-      setMapMessage('That sea point is already occupied by another boat.');
+    const occupiedBoat = occupiedLookup.get(`${grid.x}-${grid.y}`);
+    if (occupiedBoat) {
+      setSelectedBoatId(occupiedBoat.id);
+      setMapMessage(`That sea point belongs to ${occupiedBoat.ownerUsername || 'Unknown captain'}.`);
       return;
     }
 
@@ -349,6 +353,9 @@ const SeaMap: React.FC<MapProps> = ({
       top: world.y - topLeft.y,
     };
   });
+  const selectedPin = selectedBoatId
+    ? boatPins.find(({ boat }) => boat.id === selectedBoatId)
+    : null;
 
   return (
     <div className="live-map-shell shadow-xl border border-blue-200/80 rounded-2xl overflow-hidden bg-white/95 backdrop-blur w-full">
@@ -458,17 +465,24 @@ const SeaMap: React.FC<MapProps> = ({
         ))}
 
         <div className="map-attribution">
-          © OpenStreetMap © CARTO
+          OpenStreetMap / CARTO
         </div>
 
         {boatPins.map(({ boat, isPlayerBoat, left, top }) => (
-          <div
+          <button
             key={boat.id}
+            type="button"
             className={`boat-pin ${isPlayerBoat ? 'is-player' : ''} ${
               boat.boostLevel !== 'NONE' ? 'is-boosted' : ''
             }`}
             style={{ left, top }}
             title={`${boat.ownerUsername} - ${boat.boatType} (${boat.x}, ${boat.y})`}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              setSelectedBoatId(boat.id);
+              setMapMessage(`${boat.ownerUsername || 'Unknown captain'} anchored at (${boat.x}, ${boat.y}).`);
+            }}
           >
             {boat.boostImage ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -476,8 +490,40 @@ const SeaMap: React.FC<MapProps> = ({
             ) : (
               <span>{boatMark(boat.boatType)}</span>
             )}
-          </div>
+          </button>
         ))}
+
+        {selectedPin && (
+          <div
+            className={`boat-info-popover ${selectedPin.isPlayerBoat ? 'is-player' : ''}`}
+            style={{ left: selectedPin.left, top: selectedPin.top }}
+          >
+            <button
+              type="button"
+              className="boat-info-close"
+              aria-label="Close boat details"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                setSelectedBoatId(null);
+              }}
+            >
+              x
+            </button>
+            <p className="boat-info-eyebrow">
+              {selectedPin.isPlayerBoat ? 'Your boat' : 'Captain'}
+            </p>
+            <h3>{selectedPin.boat.ownerUsername || 'Unknown captain'}</h3>
+            <div className="boat-info-grid">
+              <span>Boat</span>
+              <strong>{selectedPin.boat.boatType}</strong>
+              <span>Grid</span>
+              <strong>({selectedPin.boat.x}, {selectedPin.boat.y})</strong>
+              <span>Daily XP</span>
+              <strong>{selectedPin.boat.xp || 0}</strong>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="live-map-footer flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 py-3 px-4 bg-slate-50/95 border-t border-slate-200/80">
@@ -487,7 +533,7 @@ const SeaMap: React.FC<MapProps> = ({
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" /> {boats.length} active boats</span>
         </div>
         <div className="text-xs text-slate-500 flex items-center gap-1.5">
-          <span>💡 Move at least once every 24h to avoid XP decay.{playerBoost && playerBoost.level !== 'NONE' ? ` Boost: +${Math.round(playerBoost.multiplier * 100)}% XP active.` : ''}</span>
+          <span>Tip: Move at least once every 24h to avoid XP decay.{playerBoost && playerBoost.level !== 'NONE' ? ` Boost: +${Math.round(playerBoost.multiplier * 100)}% XP active.` : ''}</span>
         </div>
       </div>
     </div>

@@ -73,6 +73,16 @@ export interface UserProfile {
   boats?: OwnedBoat[];
   boost?: BoostInfo;
   lastClaimDate?: string | null;
+  referral?: {
+    code?: string | null;
+    referredBy?: string | null;
+    referredByCode?: string | null;
+    appliedAt?: string | null;
+    count: number;
+    xpEarned: number;
+    rewardXp: number;
+    eligibleToApply: boolean;
+  };
   miniGame?: {
     highScore: number;
     bestReactionMs?: number | null;

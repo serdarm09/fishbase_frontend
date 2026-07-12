@@ -265,7 +265,7 @@ export function FishingMiniGame() {
               {phase === 'waiting' && (
                 <span className="flex items-center gap-1.5">
                   <Anchor size={16} className="anim-bobber text-blue-600" />
-                  Hold steady… the fish is circling.
+                  Hold steady... the fish is circling.
                 </span>
               )}
               {phase === 'catch' && (
@@ -341,13 +341,13 @@ export function FishingMiniGame() {
               <div className="ocean-card border bg-white/90 p-3 text-center anim-score-reveal anim-delay-2">
                 <p className="text-xs text-gray-500 uppercase tracking-wide">Reaction</p>
                 <p className="text-2xl font-bold text-blue-700">
-                  {reactionMs !== null ? `${reactionMs} ms` : '—'}
+                  {reactionMs !== null ? `${reactionMs} ms` : '-'}
                 </p>
               </div>
               <div className="ocean-card border bg-white/90 p-3 text-center anim-score-reveal anim-delay-3">
                 <p className="text-xs text-gray-500 uppercase tracking-wide">XP Earned</p>
                 <p className={`text-2xl font-bold text-blue-700 ${xpAward ? 'anim-xp-pulse' : ''}`}>
-                  {xpAward !== null ? `+${xpAward} XP` : isSubmitting ? '...' : '—'}
+                  {xpAward !== null ? `+${xpAward} XP` : isSubmitting ? '...' : '-'}
                 </p>
               </div>
             </div>
@@ -356,7 +356,7 @@ export function FishingMiniGame() {
           {highScore !== null && (
             <p className="text-xs text-gray-500 anim-float-in-up">
               Personal best: <span className="font-semibold text-blue-700">{highScore}</span>
-              {userRank ? ` • Current rank #${userRank}` : ''}
+              {userRank ? ` - Current rank #${userRank}` : ''}
             </p>
           )}
         </div>
@@ -396,7 +396,7 @@ export function FishingMiniGame() {
                       </span>
                       <span className="text-xs text-gray-500">
                         High score {entry.highScore}{' '}
-                        {entry.bestReactionMs ? `• Best ${entry.bestReactionMs} ms` : ''}
+                        {entry.bestReactionMs ? `- Best ${entry.bestReactionMs} ms` : ''}
                       </span>
                     </div>
                   </div>

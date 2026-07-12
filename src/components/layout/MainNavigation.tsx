@@ -5,14 +5,14 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
-import { User, Map as MapIcon, Trophy, Anchor, Gift, LogOut } from 'lucide-react';
+import { User, Map as MapIcon, Trophy, Anchor, Gift, LogOut, type LucideIcon } from 'lucide-react';
 
 type NavItem = {
   href: string;
   label: string;
   caption: string;
   mark: string;
-  icon: React.FC<{ size?: number; className?: string }>;
+  icon: LucideIcon;
 };
 
 const NAV_ITEMS: NavItem[] = [

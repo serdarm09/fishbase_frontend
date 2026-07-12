@@ -125,7 +125,7 @@ export default function DailyClaimPage() {
   return (
     <section className="space-y-6 max-w-5xl mx-auto pb-8">
       {/* ── Header ──────────────────────────────────────────────── */}
-      <header className="bg-white/80 backdrop-blur border border-blue-100 rounded-2xl p-6 shadow-sm space-y-6 anim-float-in-up">
+      <header className="game-hero-panel bg-white/80 backdrop-blur border border-blue-100 rounded-2xl p-6 shadow-sm space-y-6 anim-float-in-up">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <h1 className="text-3xl font-extrabold text-blue-900 flex items-center gap-3">
@@ -156,12 +156,12 @@ export default function DailyClaimPage() {
 
         {/* ── Stat tiles ──────────────────────────────────────── */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm anim-pop-in anim-delay-1">
+          <div className="game-metric-card bg-white border border-gray-100 rounded-xl p-5 shadow-sm anim-pop-in anim-delay-1">
             <p className="text-sm font-semibold text-gray-500 mb-1">Active streak</p>
             <p className="text-3xl font-bold text-gray-800">{currentStreak} days</p>
             <p className="text-xs text-gray-400 mt-2">Longest streak: {profile?.longestStreak || 0} days</p>
           </div>
-          <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm anim-pop-in anim-delay-2">
+          <div className="game-metric-card bg-white border border-gray-100 rounded-xl p-5 shadow-sm anim-pop-in anim-delay-2">
             <p className="text-sm font-semibold text-gray-500 mb-1">Daily XP base</p>
             <p className="text-3xl font-bold text-gray-800">
               {activeBoat?.dailyXp ? `${activeBoat.dailyXp} XP` : 'No boat'}
@@ -170,10 +170,10 @@ export default function DailyClaimPage() {
               <Anchor size={12} /> {activeBoat ? activeBoat.boatType : 'None active'}
             </p>
           </div>
-          <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm anim-pop-in anim-delay-3">
+          <div className="game-metric-card bg-white border border-gray-100 rounded-xl p-5 shadow-sm anim-pop-in anim-delay-3">
             <p className="text-sm font-semibold text-gray-500 mb-1">Last claim</p>
             <p className="text-3xl font-bold text-gray-800">
-              {profile?.lastClaimDate ? dayjs(profile.lastClaimDate).fromNow(true) + ' ago' : '—'}
+              {profile?.lastClaimDate ? dayjs(profile.lastClaimDate).fromNow(true) + ' ago' : '-'}
             </p>
             <p className="text-xs text-blue-600 font-medium mt-2">
               Next: {nextClaimText ? nextClaimText : 'Ready now'}
@@ -184,20 +184,20 @@ export default function DailyClaimPage() {
 
       {/* ── Error / Success ─────────────────────────────────────── */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center gap-2 anim-float-in-up">
+        <div className="game-alert game-alert-error bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center gap-2 anim-float-in-up">
           {error}
         </div>
       )}
 
       {success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl flex items-center gap-2 anim-pop-in">
+        <div className="game-alert game-alert-success bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl flex items-center gap-2 anim-pop-in">
           <CheckCircle2 size={18} className="anim-check-draw" />
           <span className="anim-xp-pulse">{success}</span>
         </div>
       )}
 
       {/* ── Claim section ───────────────────────────────────────── */}
-      <section className="bg-white/80 backdrop-blur border border-blue-100 rounded-2xl p-6 shadow-sm space-y-5 anim-float-in-up anim-delay-2">
+      <section className="game-action-panel bg-white/80 backdrop-blur border border-blue-100 rounded-2xl p-6 shadow-sm space-y-5 anim-float-in-up anim-delay-2">
         <div className="flex items-center gap-2 text-blue-900">
           <Gift size={24} className="text-blue-500" />
           <h2 className="text-xl font-bold">Collect your daily fishing XP</h2>
@@ -218,7 +218,7 @@ export default function DailyClaimPage() {
           {isClaiming ? (
             <span className="flex items-center gap-2">
               <Fish size={20} className="anim-bobber text-amber-300" />
-              Reeling in rewards…
+              Reeling in rewards...
             </span>
           ) : claimState.canClaim ? (
             <span className="flex items-center gap-2">
@@ -239,7 +239,7 @@ export default function DailyClaimPage() {
       </section>
 
       {/* ── Seven-day streak calendar ───────────────────────────── */}
-      <section className="bg-white/80 backdrop-blur border border-blue-100 rounded-2xl p-6 shadow-sm space-y-6 anim-float-in-up anim-delay-3">
+      <section className="game-action-panel bg-white/80 backdrop-blur border border-blue-100 rounded-2xl p-6 shadow-sm space-y-6 anim-float-in-up anim-delay-3">
         <div className="flex items-center gap-2 text-blue-900">
           <Calendar size={24} className="text-blue-500" />
           <h2 className="text-xl font-bold">Seven-day streak calendar</h2>
@@ -255,7 +255,7 @@ export default function DailyClaimPage() {
             return (
               <div
                 key={reward.day}
-                className={`flex flex-col rounded-xl p-4 border transition-all anim-pop-in ${
+                className={`game-streak-card flex flex-col rounded-xl p-4 border transition-all anim-pop-in ${
                   isActive
                     ? 'border-blue-400 ring-2 ring-blue-100 shadow-md anim-streak-glow'
                     : isCompleted

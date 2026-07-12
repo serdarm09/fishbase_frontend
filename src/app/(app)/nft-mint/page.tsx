@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { BrowserProvider, Contract, Interface, parseEther, parseUnits } from 'ethers';
 import { nftApi } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
@@ -37,6 +37,49 @@ const ERC20_ABI = [
   "function approve(address spender, uint256 amount) external returns (bool)",
   "function allowance(address owner, address spender) external view returns (uint256)"
 ];
+
+const fleetCardStyle = (accent: string, isActive = false): CSSProperties => ({
+  background:
+    'linear-gradient(180deg, rgba(8, 28, 46, 0.96) 0%, rgba(3, 18, 33, 0.98) 100%)',
+  border: `1px solid ${isActive ? accent : 'rgba(124, 194, 255, 0.22)'}`,
+  borderRadius: 16,
+  padding: '1.2rem',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '0.85rem',
+  boxShadow: isActive
+    ? `0 0 0 2px ${accent}44, 0 18px 40px rgba(0, 0, 0, 0.28)`
+    : '0 14px 34px rgba(0, 0, 0, 0.22)',
+});
+
+const boatImageStageStyle = (accent: string): CSSProperties => ({
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  minHeight: '5.75rem',
+  borderRadius: 14,
+  background: `radial-gradient(circle at 50% 45%, ${accent}26 0%, rgba(255,255,255,0.05) 42%, rgba(255,255,255,0.02) 100%)`,
+  border: '1px solid rgba(255,255,255,0.08)',
+});
+
+const boatMetaRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '0.75rem',
+  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  borderRadius: 10,
+  padding: '0.52rem 0.62rem',
+  color: 'rgba(210, 230, 244, 0.78)',
+  fontSize: '0.78rem',
+};
+
+const boatMetaValueStyle: CSSProperties = {
+  color: '#ffffff',
+  fontWeight: 800,
+  textAlign: 'right',
+};
 
 const BOAT_TYPE_IDS: Record<string, number> = {
   DINGHY: 0,
@@ -336,10 +379,10 @@ export default function NftMintPage() {
     <section style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
       {/* Header */}
-      <header className="ocean-card" style={{ paddingBottom: '1.25rem' }}>
+      <header className="ocean-card game-hero-panel" style={{ paddingBottom: '1.25rem' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
-            <h1 className="page-heading">
+            <h1 className="page-heading animated-heading">
               NFT Hangar
               <span className="badge">5 boat classes</span>
             </h1>
@@ -384,18 +427,34 @@ export default function NftMintPage() {
                   const bKey  = (boat.boatType as string).toUpperCase();
                   const color = BOAT_COLORS[bKey] ?? BOAT_COLORS.DINGHY;
                   return (
-                    <div key={boat.tokenId} style={{ background: color.bg, border: `2px solid ${boat.isActive ? color.badge : color.border}`, borderRadius: 16, padding: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', boxShadow: boat.isActive ? `0 0 0 3px ${color.badge}22` : 'none' }}>
+                    <div key={boat.tokenId} className="fleet-card" style={fleetCardStyle(color.badge, boat.isActive)}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <BoatSVG type={bKey as BoatTypeName} size={64} />
+                        <div style={{ ...boatImageStageStyle(color.badge), width: '5.8rem', minHeight: '5.1rem' }}>
+                          <BoatSVG type={bKey as BoatTypeName} size={70} />
+                        </div>
                         {boat.isActive && <span style={{ fontSize: '0.7rem', fontWeight: 700, background: color.badge, color: '#fff', borderRadius: 999, padding: '0.2rem 0.6rem' }}>Active</span>}
                       </div>
                       <div>
-                        <p style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '1.05rem' }}>
-                          {boatLabel(bKey)} <span style={{ fontWeight: 400, color: '#94A3B8', fontSize: '0.85rem' }}>#{boat.tokenId}</span>
+                        <p style={{ fontWeight: 800, color: '#ffffff', fontSize: '1.05rem' }}>
+                          {boatLabel(bKey)} <span style={{ fontWeight: 600, color: 'rgba(195, 215, 230, 0.72)', fontSize: '0.85rem' }}>#{boat.tokenId}</span>
                         </p>
-                        <p style={{ fontSize: '0.85rem', color: '#64748B', display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.25rem' }}>
+                        <p style={{ fontSize: '0.85rem', color: 'rgba(210, 230, 244, 0.78)', display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.25rem' }}>
                           <Zap size={13} color={color.badge} /> {boat.dailyXp} XP / day
                         </p>
+                      </div>
+                      <div style={{ display: 'grid', gap: '0.45rem' }}>
+                        <div style={boatMetaRowStyle}>
+                          <span>Position</span>
+                          <strong style={boatMetaValueStyle}>
+                            {typeof boat.position?.x === 'number' && typeof boat.position?.y === 'number'
+                              ? `${boat.position?.x}, ${boat.position?.y}`
+                              : 'Not deployed'}
+                          </strong>
+                        </div>
+                        <div style={boatMetaRowStyle}>
+                          <span>Total XP</span>
+                          <strong style={boatMetaValueStyle}>{boat.stats?.totalXpEarned || 0}</strong>
+                        </div>
                       </div>
                       {!boat.isActive && (
                         <button type="button" onClick={() => handleActivate(boat.tokenId)} disabled={isActivating === boat.tokenId} style={{ background: color.badge, color: '#fff', border: 'none', borderRadius: 999, padding: '0.6rem', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', opacity: isActivating === boat.tokenId ? 0.6 : 1 }}>
@@ -434,22 +493,28 @@ export default function NftMintPage() {
                 const disableMint = isStarter && hasBoats;
 
                 return (
-                  <div key={boat.type} style={{ background: color.bg, border: `1px solid ${color.border}`, borderRadius: 16, padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'center', padding: '0.5rem 0' }}>
+                  <div key={boat.type} className="fleet-card" style={fleetCardStyle(color.badge)}>
+                    <div style={boatImageStageStyle(color.badge)}>
                       {/* Enlarged boat images */}
                       <BoatSVG type={bKey as BoatTypeName} size={84} />
                     </div>
                     <div>
-                      <p style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '1.05rem' }}>{boat.name}</p>
-                      <p style={{ fontSize: '0.8rem', color: '#64748B', marginTop: '0.35rem', lineHeight: 1.4 }}>{boat.description}</p>
+                      <p style={{ fontWeight: 800, color: '#ffffff', fontSize: '1.05rem' }}>{boat.name}</p>
+                      <p style={{ fontSize: '0.82rem', color: 'rgba(210, 230, 244, 0.78)', marginTop: '0.35rem', lineHeight: 1.45 }}>{boat.description}</p>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', marginBottom: '0.5rem' }}>
-                      <span style={{ fontSize: '0.85rem', color: color.badge, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                        <Zap size={14} /> {boat.dailyXp} XP/d
-                      </span>
-                      <span style={{ fontWeight: 800, fontSize: '1.1rem', color: isFree ? '#16A34A' : 'var(--ocean-700)' }}>
-                        {price}
-                      </span>
+                    <div style={{ display: 'grid', gap: '0.5rem', marginTop: 'auto', marginBottom: '0.25rem' }}>
+                      <div style={boatMetaRowStyle}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                          <Zap size={14} color={color.badge} /> Daily XP
+                        </span>
+                        <strong style={boatMetaValueStyle}>{boat.dailyXp} XP</strong>
+                      </div>
+                      <div style={boatMetaRowStyle}>
+                        <span>Price</span>
+                        <strong style={{ ...boatMetaValueStyle, color: isFree ? '#4ADE80' : '#ffffff' }}>
+                          {price}
+                        </strong>
+                      </div>
                     </div>
 
                     {/* Mint Butonu */}
@@ -497,7 +562,7 @@ export default function NftMintPage() {
               </p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: '0.7rem' }}>
                 {boosts.map((boost) => (
-                  <div key={boost.level} style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 14, padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div key={boost.level} className="fleet-card" style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 14, padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                     <p style={{ fontWeight: 700, color: '#92400E', fontSize: '0.92rem' }}>{boost.name}</p>
                     <p style={{ fontSize: '0.8rem', color: '#D97706', fontWeight: 600 }}>+{Math.round(boost.multiplier * 100)}% XP</p>
                     <p style={{ fontSize: '0.75rem', color: '#92400E', fontWeight: 700, marginTop: 4 }}>{boost.priceEth} ETH</p>

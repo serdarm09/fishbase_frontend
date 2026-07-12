@@ -5,19 +5,35 @@ const resolveApiBase = () => {
 };
 
 const API_BASE = resolveApiBase();
+const AUTH_EXPIRED_EVENT = 'fishbase:auth-expired';
 
 type FetchOptions = RequestInit & { token?: string };
 
+function notifyAuthExpired() {
+  if (typeof window === 'undefined') return;
+
+  window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+}
+
 async function request<T>(path: string, options: FetchOptions = {}): Promise<T> {
   const { token, headers, ...rest } = options;
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...rest,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(headers || {}),
-    },
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      ...rest,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(headers || {}),
+      },
+    });
+  } catch (error) {
+    const details = error instanceof Error ? error.message : 'Network request failed';
+    throw new Error(
+      `Backend API'ye ulasilamiyor (${API_BASE}). Backend calisiyor mu ve FRONTEND_URL/APP_URL bu site adresini izinliyor mu? Detay: ${details}`
+    );
+  }
 
   const contentType = response.headers.get('content-type') || '';
   const isJson = contentType.includes('application/json');
@@ -27,6 +43,14 @@ async function request<T>(path: string, options: FetchOptions = {}): Promise<T> 
 
   if (!response.ok || data.success === false) {
     const errorMessage = data.error || data.message || 'Request failed';
+
+    if (
+      response.status === 401 &&
+      /token expired|invalid token|access denied/i.test(errorMessage)
+    ) {
+      notifyAuthExpired();
+    }
+
     throw new Error(errorMessage);
   }
 
@@ -139,6 +163,20 @@ export const gameApi = {
         rank: number | null;
       };
     }>('/game/fishing-score', {
+      token,
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+  async applyReferral(token: string, payload: { code: string }) {
+    return request<{
+      success: boolean;
+      referral: {
+        referrerUsername: string;
+        xpAwarded: number;
+        totalXp: number;
+      };
+    }>('/game/referral/apply', {
       token,
       method: 'POST',
       body: JSON.stringify(payload),

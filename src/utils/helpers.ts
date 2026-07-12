@@ -117,17 +117,17 @@ export function calculateDistance(
 }
 
 /**
- * Get boat emoji by type
+ * Get boat short label by type
  */
 export function getBoatEmoji(boatType: BoatType): string {
   const emojis = {
-    [BoatType.DINGHY]: '🚣',
-    [BoatType.SAILBOAT]: '⛵',
-    [BoatType.YACHT]: '🛥️',
-    [BoatType.TRAWLER]: '🚢',
-    [BoatType.MEGASHIP]: '🚢',
+    [BoatType.DINGHY]: 'DG',
+    [BoatType.SAILBOAT]: 'SB',
+    [BoatType.YACHT]: 'YT',
+    [BoatType.TRAWLER]: 'TR',
+    [BoatType.MEGASHIP]: 'MS',
   };
-  return emojis[boatType] || '🚣';
+  return emojis[boatType] || 'DG';
 }
 
 /**

@@ -29,8 +29,11 @@ export const metadata: Metadata = {
     "Connect a Base wallet, deploy fishing boats, earn XP, and climb the FishBase leaderboards.",
   applicationName: "FishBase",
   icons: {
-    icon: "/favicon.ico",
-    apple: "/icon.png",
+    icon: [
+      { url: "/favicon.png?v=2", type: "image/png" },
+      { url: "/icon.png?v=2", type: "image/png" },
+    ],
+    apple: [{ url: "/icon.png?v=2", type: "image/png" }],
   },
   openGraph: {
     title: "FishBase",
@@ -38,7 +41,7 @@ export const metadata: Metadata = {
       "A Base App fishing game where captains place boats, collect daily XP, and compete onchain.",
     url: appUrl,
     siteName: "FishBase",
-    images: [{ url: "/icon.png", width: 1024, height: 1024, alt: "FishBase" }],
+    images: [{ url: "/icon.png?v=2", width: 1024, height: 1024, alt: "FishBase" }],
     type: "website",
   },
   twitter: {
@@ -46,7 +49,7 @@ export const metadata: Metadata = {
     title: "FishBase",
     description:
       "Place boats, earn XP, and compete with your Base wallet in FishBase.",
-    images: ["/icon.png"],
+    images: ["/icon.png?v=2"],
   },
 };
 
@@ -66,6 +69,9 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <meta name="base:app_id" content={baseAppId} />
+        <link rel="icon" href="/favicon.png?v=3" type="image/png" />
+        <link rel="shortcut icon" href="/favicon.png?v=3" type="image/png" />
+        <link rel="apple-touch-icon" href="/icon.png?v=3" />
       </head>
       <body className={`${nunito.variable} ${instrumentSerif.variable} app-shell antialiased`}>
         <ClientProviders>{children}</ClientProviders>

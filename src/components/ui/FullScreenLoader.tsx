@@ -41,7 +41,7 @@ export const FullScreenLoader = ({ label = 'Loading' }: { label?: string }) => (
         {label}<span className="loading-dots" />
       </p>
       <p style={{ fontSize: '0.82rem', color: 'rgba(175,200,218,0.55)', marginTop: '0.4rem' }}>
-        Checking the tides…
+        Checking the tides...
       </p>
     </div>
   </div>

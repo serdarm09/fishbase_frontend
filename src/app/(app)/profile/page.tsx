@@ -7,9 +7,10 @@ import { gameApi, nftApi } from '@/services/api';
 import { StatCard } from '@/components/dashboard/StatCard';
 import type { UserProfile, OwnedBoat, BoostInfo } from '@/types';
 import BoatSVG, { boatLabel, type BoatTypeName } from '@/components/boats/BoatSVG';
-import { Fish, Flame, Anchor, Gift, Calendar, Map as MapIcon, Award, CheckCircle, Shield } from 'lucide-react';
+import { Fish, Flame, Anchor, Gift, Calendar, Award, CheckCircle, Copy, Share2, Users, Rocket } from 'lucide-react';
 
 const numberFormatter = new Intl.NumberFormat('en-US');
+const PENDING_REFERRAL_KEY = 'fishbase_pending_referral';
 
 const streakMilestones = [
   { days: 1, label: 'First Day' },
@@ -37,6 +38,10 @@ export default function ProfilePage() {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
+  const [referralCodeInput, setReferralCodeInput] = useState('');
+  const [isApplyingReferral, setIsApplyingReferral] = useState(false);
+  const [referralMessage, setReferralMessage] = useState<string | null>(null);
+  const [referralError, setReferralError] = useState<string | null>(null);
   const [profileForm, setProfileForm] = useState({
     username: '',
     displayName: '',
@@ -105,12 +110,26 @@ export default function ProfilePage() {
     });
   }, [profile]);
 
+  useEffect(() => {
+    const pendingReferral = window.localStorage.getItem(PENDING_REFERRAL_KEY);
+    if (pendingReferral) {
+      setReferralCodeInput(pendingReferral);
+    }
+  }, []);
+
   const activeBoat = useMemo(() => {
     if (profile?.activeBoat) return profile.activeBoat;
     return userBoats.find((boat) => boat.isActive);
   }, [profile, userBoats]);
 
   const avatarUrl = profile?.profileData?.avatar || profile?.profileData?.pfpUrl || '';
+  const referralLink = useMemo(() => {
+    if (!profile?.referral?.code || typeof window === 'undefined') {
+      return profile?.referral?.code || '';
+    }
+
+    return `${window.location.origin}/?ref=${profile.referral.code}`;
+  }, [profile?.referral?.code]);
 
   const handleStartProfileEdit = () => {
     if (!profile) return;
@@ -142,7 +161,7 @@ export default function ProfilePage() {
     const displayName = profileForm.displayName.trim();
 
     if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
-      setProfileSaveError('Kullanıcı adı 3-20 karakter olmalı; sadece harf, sayı ve alt çizgi kullan.');
+      setProfileSaveError('Username must be 3-20 characters and can only use letters, numbers, and underscores.');
       return;
     }
 
@@ -167,14 +186,57 @@ export default function ProfilePage() {
       }));
       setIsEditingProfile(false);
     } catch (err: any) {
-      const message = err.message || 'Profil güncellenemedi';
+      const message = err.message || 'Profile could not be updated';
       setProfileSaveError(
         message.toLowerCase().includes('already taken')
-          ? 'Bu kullanıcı adı alınmış. Başka bir kullanıcı adı seç.'
+          ? 'This username is already taken. Choose another username.'
           : message
       );
     } finally {
       setIsSavingProfile(false);
+    }
+  };
+
+  const handleCopyReferral = async () => {
+    if (!referralLink) return;
+
+    try {
+      await navigator.clipboard.writeText(referralLink);
+      setReferralMessage('Referral link copied.');
+      setReferralError(null);
+    } catch {
+      setReferralError('Referral link could not be copied.');
+    }
+  };
+
+  const handleApplyReferral = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!token || !profile) return;
+
+    const code = referralCodeInput.trim();
+    if (!code) {
+      setReferralError('Enter a referral code.');
+      return;
+    }
+
+    try {
+      setIsApplyingReferral(true);
+      setReferralMessage(null);
+      setReferralError(null);
+
+      const result = await gameApi.applyReferral(token, { code });
+      const refreshedProfile = await gameApi.getProfile(token);
+
+      setProfile(refreshedProfile.profile as UserProfile);
+      setReferralCodeInput('');
+      window.localStorage.removeItem(PENDING_REFERRAL_KEY);
+      setReferralMessage(
+        `${result.referral.referrerUsername} referral applied. +${result.referral.xpAwarded} XP was awarded to the referrer.`
+      );
+    } catch (err: any) {
+      setReferralError(err.message || 'Referral code could not be applied.');
+    } finally {
+      setIsApplyingReferral(false);
     }
   };
 
@@ -231,16 +293,14 @@ export default function ProfilePage() {
                   className="w-12 h-12 rounded-full object-cover"
                 />
               ) : (
-                <span role="img" aria-hidden="true">
-                  🧔‍♂️
-                </span>
+                <span aria-hidden="true">FB</span>
               )}
             </div>
             <div className="profile-identity">
               {isEditingProfile ? (
                 <form className="profile-edit-form" onSubmit={handleProfileSave}>
                   <label className="profile-field">
-                    <span>Kullanıcı adı</span>
+                    <span>Username</span>
                     <input
                       value={profileForm.username}
                       onChange={(event) =>
@@ -256,7 +316,7 @@ export default function ProfilePage() {
                     />
                   </label>
                   <label className="profile-field">
-                    <span>Görünen ad</span>
+                    <span>Display name</span>
                     <input
                       value={profileForm.displayName}
                       onChange={(event) =>
@@ -273,7 +333,7 @@ export default function ProfilePage() {
                   {profileSaveError && <p className="profile-error">{profileSaveError}</p>}
                   <div className="profile-edit-actions">
                     <button type="submit" className="primary-button profile-action-button" disabled={isSavingProfile}>
-                      {isSavingProfile ? 'Kaydediliyor...' : 'Kaydet'}
+                      {isSavingProfile ? 'Saving...' : 'Save'}
                     </button>
                     <button
                       type="button"
@@ -281,7 +341,7 @@ export default function ProfilePage() {
                       onClick={handleCancelProfileEdit}
                       disabled={isSavingProfile}
                     >
-                      Vazgeç
+                      Cancel
                     </button>
                   </div>
                 </form>
@@ -293,7 +353,7 @@ export default function ProfilePage() {
                       <span className="badge">Level {profile.level}</span>
                     </h1>
                     <button className="secondary-button profile-edit-button" onClick={handleStartProfileEdit}>
-                      Düzenle
+                      Edit
                     </button>
                   </div>
                   {profile.profileData?.displayName && (
@@ -312,31 +372,31 @@ export default function ProfilePage() {
 
           <div className="flex flex-wrap gap-2">
             <Link href="/daily-claim" className="primary-button">
-              🎁 Daily Bonus
+              <Gift size={16} /> Daily Bonus
             </Link>
             <Link href="/map" className="secondary-button">
-              🗺️ Open Sea Map
+              <Anchor size={16} /> Open Sea Map
             </Link>
           </div>
         </div>
 
         <div className="grid grid-cols-1 grid-md-2 grid-xl-5 gap-3">
           <StatCard
-            icon="🐟"
+            icon={<Fish size={20} />}
             label="Total XP"
             value={`${numberFormatter.format(profile.totalXp)} XP`}
             helper="Total earned on Base"
             accent="blue"
           />
           <StatCard
-            icon="🔥"
+            icon={<Flame size={20} />}
             label="Streak"
             value={`${profile.currentStreak} days`}
             helper={`Record: ${profile.longestStreak} days`}
             accent="sun"
           />
           <StatCard
-            icon="⚓"
+            icon={<Anchor size={20} />}
             label="Active Boat"
             value={activeBoat ? activeBoat.boatType : 'No boat selected'}
             helper={
@@ -345,7 +405,7 @@ export default function ProfilePage() {
             accent="green"
           />
           <StatCard
-            icon="🎁"
+            icon={<Gift size={20} />}
             label="Boost"
             value={profile.boost?.name || 'No boost'}
             helper={
@@ -356,9 +416,9 @@ export default function ProfilePage() {
             accent="purple"
           />
           <StatCard
-            icon="📅"
+            icon={<Calendar size={20} />}
             label="Days Played"
-            value={stats?.daysPlayed ? `${stats.daysPlayed} days` : '—'}
+            value={stats?.daysPlayed ? `${stats.daysPlayed} days` : '-'}
             helper="Total days since you set sail"
             accent="purple"
           />
@@ -370,14 +430,14 @@ export default function ProfilePage() {
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div>
             <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              ⛵ Level Progress
+              <Award size={20} color="var(--ocean-500)" /> Level Progress
             </h2>
             <p className="text-sm text-gray-500">
               Earn {numberFormatter.format(profile.xpToNextLevel || 0)} more XP to reach the next tier.
             </p>
           </div>
           <div className="chip">
-            ⚓ Current level {profile.level}
+            Current level {profile.level}
           </div>
         </div>
         <div className="w-full bg-white/70 rounded-full h-4 border border-blue-200 overflow-hidden">
@@ -391,9 +451,112 @@ export default function ProfilePage() {
         </div>
       </section>
 
+      {/* Referral Program */}
+      <section className="ocean-card game-action-panel" style={{ display: 'grid', gap: '1rem' }}>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <Users size={20} color="var(--ocean-500)" /> Referral Crew
+            </h2>
+            <p className="text-sm text-gray-500 mt-2">
+              Invite verified captains. Each valid referral adds {profile.referral?.rewardXp ?? 5} XP to your airdrop score.
+            </p>
+          </div>
+          <div className="chip">
+            {profile.referral?.count ?? 0} referrals / {profile.referral?.xpEarned ?? 0} XP
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 grid-md-2 gap-3">
+          <div
+            style={{
+              background: 'rgba(3, 18, 33, 0.82)',
+              border: '1px solid rgba(124, 194, 255, 0.20)',
+              borderRadius: 14,
+              padding: '1rem',
+              display: 'grid',
+              gap: '0.75rem',
+            }}
+          >
+            <div>
+              <p style={{ color: 'rgba(195, 215, 230, 0.72)', fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Your code
+              </p>
+              <p style={{ color: '#fff', fontSize: '1.6rem', fontWeight: 900, letterSpacing: '0.08em', marginTop: '0.25rem' }}>
+                {profile.referral?.code || 'Creating...'}
+              </p>
+            </div>
+            <div
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 10,
+                padding: '0.65rem 0.75rem',
+                color: 'rgba(210, 230, 244, 0.82)',
+                fontSize: '0.82rem',
+                overflowWrap: 'anywhere',
+              }}
+            >
+              {referralLink || 'Referral link will appear after profile loads.'}
+            </div>
+            <button type="button" className="secondary-button" onClick={handleCopyReferral} disabled={!referralLink}>
+              <Copy size={15} /> Copy Invite Link
+            </button>
+          </div>
+
+          <form
+            onSubmit={handleApplyReferral}
+            style={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.10)',
+              borderRadius: 14,
+              padding: '1rem',
+              display: 'grid',
+              gap: '0.75rem',
+            }}
+          >
+            <div>
+              <p style={{ color: '#fff', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                <Share2 size={16} color="var(--ocean-500)" /> Use referral code
+              </p>
+              <p style={{ color: 'rgba(195, 215, 230, 0.70)', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+                One code per wallet. A verified boat is required before applying a code.
+              </p>
+            </div>
+            <input
+              value={referralCodeInput}
+              onChange={(event) => setReferralCodeInput(event.target.value.toUpperCase())}
+              disabled={Boolean(profile.referral?.appliedAt)}
+              placeholder={profile.referral?.appliedAt ? `Applied: ${profile.referral.referredByCode}` : 'Enter code'}
+              className="profile-input"
+              maxLength={32}
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <button
+              type="submit"
+              className="primary-button"
+              disabled={isApplyingReferral || Boolean(profile.referral?.appliedAt)}
+            >
+              {profile.referral?.appliedAt ? 'Referral Applied' : isApplyingReferral ? 'Applying...' : 'Apply Code'}
+            </button>
+            {!profile.referral?.eligibleToApply && !profile.referral?.appliedAt && (
+              <p style={{ color: '#FBBF24', fontSize: '0.8rem', fontWeight: 700 }}>
+                Mint or register a verified boat before using a referral code.
+              </p>
+            )}
+          </form>
+        </div>
+
+        {referralMessage && <p className="game-alert game-alert-success" style={{ color: '#4ADE80', fontWeight: 700, fontSize: '0.85rem' }}>{referralMessage}</p>}
+        {referralError && <p className="game-alert game-alert-error" style={{ color: '#F87171', fontWeight: 700, fontSize: '0.85rem' }}>{referralError}</p>}
+      </section>
+
       {/* Streak Milestones */}
       <section className="ocean-card">
-        <h2 className="text-xl font-bold text-gray-800 mb-3">🎣 Streak Journey</h2>
+        <h2 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
+          <Flame size={20} color="var(--ocean-500)" /> Streak Journey
+        </h2>
         <div className="flex flex-col gap-3">
           {streakMilestones.map((milestone) => {
             const achieved = profile.currentStreak >= milestone.days;
@@ -404,7 +567,7 @@ export default function ProfilePage() {
               >
                 <div className="flex items-center gap-3">
                   <span className="text-2xl" aria-hidden="true">
-                    {achieved ? '✅' : '🟦'}
+                    {achieved ? <CheckCircle size={22} color="#4ADE80" /> : <span className="badge">Next</span>}
                   </span>
                   <div>
                     <p className="font-semibold text-gray-700">{milestone.label}</p>
@@ -424,10 +587,10 @@ export default function ProfilePage() {
       <section className="ocean-card">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-            🚤 Your Fleet
+            <Anchor size={20} color="var(--ocean-500)" /> Your Fleet
           </h2>
           <Link href="/nft-mint" className="secondary-button text-sm">
-            🚀 Mint a New Boat
+            <Rocket size={15} /> Mint a New Boat
           </Link>
         </div>
         {userBoats.length === 0 ? (
@@ -470,14 +633,14 @@ export default function ProfilePage() {
       {/* Achievements */}
       <section className="ocean-card">
         <h2 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
-          🏅 Badges & Achievements
+          <Award size={20} color="var(--ocean-500)" /> Badges & Achievements
         </h2>
         {profile.achievements && profile.achievements.length > 0 ? (
           <div className="grid grid-cols-1 grid-md-2 gap-3">
             {profile.achievements.map((achievement) => (
               <div key={achievement.id} className="bg-white/80 rounded-lg border border-blue-200/40 p-3 flex gap-3">
                 <span className="text-3xl" aria-hidden="true">
-                  {achievement.icon || '🌟'}
+                  {achievement.icon || 'Badge'}
                 </span>
                 <div>
                   <p className="font-semibold text-gray-700">{achievement.name}</p>

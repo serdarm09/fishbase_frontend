@@ -228,7 +228,7 @@ export default function MapPage() {
 
     const boatNft = new Contract(BOAT_NFT_ADDRESS, BOAT_NFT_ABI, signer);
     const activeBoat = await boatNft.getActiveBoat(signerAddress);
-    if (BigInt(activeBoat[0]) === 0n) {
+    if (BigInt(activeBoat[0]) === BigInt(0)) {
       throw new Error('No active boat found onchain. Go to the Hangar and activate or mint a boat first.');
     }
 
@@ -327,10 +327,10 @@ export default function MapPage() {
     <section className="space-y-5">
 
       {/* Page header */}
-      <header className="ocean-card space-y-3">
+      <header className="ocean-card game-hero-panel space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="page-heading">
+            <h1 className="page-heading animated-heading">
               Sea Map
               <span className="badge">Base</span>
             </h1>
@@ -346,6 +346,7 @@ export default function MapPage() {
         {/* XP accumulation panel */}
         {activeBoatInfo ? (
           <div
+            className="game-action-panel"
             style={{
               background:    activeBoatInfo.canClaim ? 'linear-gradient(135deg,#F0FDF4,#DCFCE7)' : 'rgba(255,255,255,0.85)',
               border:        `1.5px solid ${activeBoatInfo.canClaim ? '#86EFAC' : '#BFDBFE'}`,
@@ -445,7 +446,7 @@ export default function MapPage() {
           <div className="empty-state text-sm">
             No active NFT boat.{' '}
             <Link href="/nft-mint" style={{ color: 'var(--ocean-500)', fontWeight: 600 }}>
-              Mint your first vessel →
+              Mint your first vessel
             </Link>
           </div>
         )}
@@ -453,12 +454,12 @@ export default function MapPage() {
 
       {/* Alerts */}
       {error && (
-        <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 14, padding: '0.85rem 1.1rem', color: '#DC2626', fontWeight: 600, fontSize: '0.87rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div className="game-alert game-alert-error" style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 14, padding: '0.85rem 1.1rem', color: '#DC2626', fontWeight: 600, fontSize: '0.87rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <AlertCircle size={16} /> {error}
         </div>
       )}
       {successMessage && (
-        <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 14, padding: '0.85rem 1.1rem', color: '#16A34A', fontWeight: 600, fontSize: '0.87rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div className="game-alert game-alert-success" style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 14, padding: '0.85rem 1.1rem', color: '#16A34A', fontWeight: 600, fontSize: '0.87rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <CheckCircle2 size={16} /> {successMessage}
         </div>
       )}

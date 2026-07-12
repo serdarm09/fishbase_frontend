@@ -15,25 +15,25 @@ const GALLERY_ITEMS = [
     url: 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260629_104530_521b2f85-c0f3-4d0e-9704-b578315b4cb9.png&w=1920&q=85',
     tag: 'EXPLORE',
     title: 'Live Sea Map',
-    desc: 'Place your boat on the 100×100 live grid and earn daily XP with every move.',
+    desc: 'Place your boat on the 100x100 live grid and earn daily XP with every move.',
   },
   {
     url: 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260629_103711_76ccdb8b-5043-4f47-9c54-4379713393ea.png&w=1920&q=85',
     tag: 'EARN',
     title: 'Daily Reward Deck',
-    desc: 'Claim streak XP every 24 h. Hit day 7 and unlock the 2× Golden Tide multiplier.',
+    desc: 'Claim streak XP every 24 h. Hit day 7 and unlock the 2x Golden Tide multiplier.',
   },
   {
     url: 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260629_103728_394f6a1b-85e2-4386-a4f6-408472a0a5b7.png&w=1920&q=85',
     tag: 'COLLECT',
     title: 'NFT Fleet Hangar',
-    desc: 'Mint Dinghies to Mega Ships — stronger vessels earn up to 200 XP per day.',
+    desc: 'Mint Dinghies to Mega Ships - stronger vessels earn up to 200 XP per day.',
   },
   {
     url: 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260629_103739_86743e0e-16a7-4bee-bf38-dd67985344dc.png&w=1920&q=85',
     tag: 'COMPETE',
     title: 'Captain Leaderboards',
-    desc: 'XP rankings, streak champions, and fishing mini-game timing scores — all live.',
+    desc: 'XP rankings, streak champions, and fishing mini-game timing scores - all live.',
   },
   {
     url: 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260629_103748_b2215dc8-a3a7-470d-b19a-5b87fa7d0c37.png&w=1920&q=85',
@@ -45,7 +45,7 @@ const GALLERY_ITEMS = [
     url: 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260629_103758_e919ce72-5c9d-4b87-9be6-d7647b34825c.png&w=1920&q=85',
     tag: 'BOOST',
     title: 'Golden Tide Multiplier',
-    desc: 'Maintain consecutive daily claims to multiply your ocean rewards up to 5×.',
+    desc: 'Maintain consecutive daily claims to multiply your ocean rewards up to 5x.',
   },
   {
     url: 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260629_103808_013583d0-3386-4547-9832-37c7d8edb3ac.png&w=1920&q=85',
@@ -56,7 +56,7 @@ const GALLERY_ITEMS = [
   {
     url: 'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260629_103937_a0c49d0a-33eb-4ead-aea6-c1baf241acbc.png&w=1920&q=85',
     tag: 'TACTICS',
-    title: '100×100 Grid Strategy',
+    title: '100x100 Grid Strategy',
     desc: 'Navigate your vessel to tactical open waters. Every move triggers real-time XP accumulation.',
   },
   {
@@ -101,13 +101,14 @@ type EthereumProvider = {
 };
 const getEth = () =>
   (window as typeof window & { ethereum?: EthereumProvider }).ethereum;
+const PENDING_REFERRAL_KEY = 'fishbase_pending_referral';
 
 function useHeroLogin() {
   const { setSession } = useAuth();
   const router = useRouter();
   const [status, setStatus] = useState<string | null>(null);
-  const [error, setError]   = useState<string | null>(null);
-  const [busy, setBusy]     = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const login = async () => {
     const ethereum = getEth();
@@ -117,22 +118,22 @@ function useHeroLogin() {
     }
     try {
       setBusy(true); setError(null);
-      setStatus('Connecting wallet…');
+      setStatus('Connecting wallet...');
       await ensureBaseNetwork(ethereum);
       const provider = new BrowserProvider(ethereum);
       await provider.send('eth_requestAccounts', []);
       const signer = await provider.getSigner();
       const walletAddress = await signer.getAddress();
-      setStatus('Preparing secure sign-in…');
+      setStatus('Preparing secure sign-in...');
       const challenge = await authApi.walletChallenge({
         walletAddress,
         domain: window.location.host,
         uri: window.location.origin,
         chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID || 8453),
       });
-      setStatus('Sign the login message in your wallet…');
+      setStatus('Sign the login message in your wallet...');
       const signature = await signer.signMessage(challenge.message);
-      setStatus('Verifying…');
+      setStatus('Verifying...');
       const response = await authApi.walletLogin({
         walletAddress,
         message: challenge.message,
@@ -207,7 +208,7 @@ function ScrollGallerySection({
   // RAF scroll animation loop
   useEffect(() => {
     let rafId: number;
-    const symbols = ['8', '$', '^^', '%', '/', '🌊', '⚓', '⚡', '⛵', '🔥'];
+    const symbols = ['8', '$', '^^', '%', '/', '~', 'A', '*', 'S', 'F'];
 
     const update = () => {
       const scrollY = window.scrollY || window.pageYOffset || 0;
@@ -553,7 +554,7 @@ function ScrollGallerySection({
           color: '#ffffff',
         }}
       >
-        <span>FISHBASE ® 2026</span>
+        <span>FISHBASE 2026</span>
         <span>ONCHAIN CAPTAIN FLEET</span>
       </div>
     </div>
@@ -562,11 +563,18 @@ function ScrollGallerySection({
 
 /* ═══════════════════════════════════════════════════════════════════ */
 export default function LandingPage() {
-  const router   = useRouter();
+  const router = useRouter();
   const { user } = useAuth();
   const { login, status, error, busy } = useHeroLogin();
   const [maxScroll, setMaxScroll] = useState(3000);
   const heroRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const ref = new URLSearchParams(window.location.search).get('ref');
+    if (ref) {
+      window.localStorage.setItem(PENDING_REFERRAL_KEY, ref.trim().toUpperCase());
+    }
+  }, []);
 
   /* Redirect authenticated users */
   useEffect(() => {
@@ -615,7 +623,6 @@ export default function LandingPage() {
             objectFit: 'cover',
             zIndex: 0,
           }}
-          poster="/icon.png"
         >
           <source src="/hero-bg.mp4" type="video/mp4" />
           <source
@@ -652,11 +659,11 @@ export default function LandingPage() {
           {/* Desktop links */}
           <div className="hero-nav-links">
             {[
-              { href: '/',            label: 'Home',      active: true  },
-              { href: '/map',         label: 'Sea Map',   active: false },
-              { href: '/leaderboard', label: 'Rankings',  active: false },
-              { href: '/nft-mint',    label: 'NFT Fleet', active: false },
-              { href: '/daily-claim', label: 'Daily XP',  active: false },
+              { href: '/', label: 'Home', active: true },
+              { href: '/map', label: 'Sea Map', active: false },
+              { href: '/leaderboard', label: 'Rankings', active: false },
+              { href: '/nft-mint', label: 'NFT Fleet', active: false },
+              { href: '/daily-claim', label: 'Daily XP', active: false },
             ].map(({ href, label, active }) => (
               <Link key={href} href={href} className={`hero-nav-link${active ? ' nav-active' : ''}`}>
                 {label}
@@ -681,7 +688,7 @@ export default function LandingPage() {
             onMouseEnter={(e) => { if (!busy) (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.05)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'; }}
           >
-            {busy ? 'Connecting…' : <span className="flex items-center gap-1.5"><Anchor size={16} /> Begin Journey</span>}
+            {busy ? 'Connecting...' : <span className="flex items-center gap-1.5"><Anchor size={16} /> Begin Journey</span>}
           </button>
         </nav>
 
@@ -706,7 +713,7 @@ export default function LandingPage() {
                 width: 'fit-content', letterSpacing: '0.06em', fontWeight: 600,
               }}
             >
-              <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse inline-block" /> Base Mainnet · Chain ID 8453
+              <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse inline-block" /> Built on Base
             </span>
 
             <h1 className="hero-heading animate-fade-rise-delay">
@@ -726,7 +733,7 @@ export default function LandingPage() {
               }}
             >
               Connect your Base wallet, drop anchor on the live sea grid, mint
-              your fleet, and climb the captain leaderboards — all fully onchain.
+              your fleet, and climb the captain leaderboards - all fully onchain.
             </p>
 
             <div
@@ -745,7 +752,7 @@ export default function LandingPage() {
                 onMouseEnter={(e) => { if (!busy) (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.04)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'; }}
               >
-                {busy ? 'Connecting…' : <span className="flex items-center gap-2"><Anchor size={18} /> Begin Journey</span>}
+                {busy ? 'Connecting...' : <span className="flex items-center gap-2"><Anchor size={18} /> Begin Journey</span>}
               </button>
               <Link
                 href="/leaderboard"
@@ -757,7 +764,7 @@ export default function LandingPage() {
                 onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = '#fff'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(185,210,228,0.7)'; }}
               >
-                View Leaderboards →
+                View Leaderboards
               </Link>
             </div>
           </div>
@@ -778,7 +785,7 @@ export default function LandingPage() {
               type="button" onClick={login} disabled={busy}
               className="btn-hero-connect"
             >
-              {busy ? 'Connecting…' : <span className="flex items-center justify-center gap-2"><Wallet size={16} /> Connect Base Wallet</span>}
+              {busy ? 'Connecting...' : <span className="flex items-center justify-center gap-2"><Wallet size={16} /> Connect Base Wallet</span>}
             </button>
 
             {status && (
@@ -799,9 +806,9 @@ export default function LandingPage() {
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
               {[
-                { href: '/map',         label: 'Sea Map', icon: MapIcon },
+                { href: '/map', label: 'Sea Map', icon: MapIcon },
                 { href: '/daily-claim', label: 'Daily XP', icon: Gift },
-                { href: '/nft-mint',    label: 'NFT Fleet', icon: Anchor },
+                { href: '/nft-mint', label: 'NFT Fleet', icon: Anchor },
                 { href: '/leaderboard', label: 'Rankings', icon: Trophy },
               ].map(({ href, label, icon: IconComp }) => (
                 <Link
@@ -813,8 +820,8 @@ export default function LandingPage() {
                     padding: '0.35rem 0.75rem', transition: 'background 0.2s, color 0.2s', fontWeight: 600,
                     display: 'flex', alignItems: 'center', gap: '0.35rem'
                   }}
-                  onMouseEnter={(e) => { const a = e.currentTarget as HTMLAnchorElement; a.style.background='rgba(255,255,255,0.13)'; a.style.color='#fff'; }}
-                  onMouseLeave={(e) => { const a = e.currentTarget as HTMLAnchorElement; a.style.background='rgba(255,255,255,0.06)'; a.style.color='rgba(195,220,240,0.78)'; }}
+                  onMouseEnter={(e) => { const a = e.currentTarget as HTMLAnchorElement; a.style.background = 'rgba(255,255,255,0.13)'; a.style.color = '#fff'; }}
+                  onMouseLeave={(e) => { const a = e.currentTarget as HTMLAnchorElement; a.style.background = 'rgba(255,255,255,0.06)'; a.style.color = 'rgba(195,220,240,0.78)'; }}
                 >
                   <IconComp size={13} />
                   {label}
@@ -838,7 +845,7 @@ export default function LandingPage() {
           </span>
           <div style={{ animation: 'scroll-bounce 1.8s ease-in-out infinite' }}>
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M5 8l5 5 5-5" stroke="rgba(200,220,240,0.45)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M5 8l5 5 5-5" stroke="rgba(200,220,240,0.45)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
         </div>

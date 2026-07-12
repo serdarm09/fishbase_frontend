@@ -37,8 +37,27 @@ interface AuthContextValue {
 
 const STORAGE_TOKEN_KEY = 'fishbase_token';
 const STORAGE_USER_KEY = 'fishbase_user';
+const AUTH_EXPIRED_EVENT = 'fishbase:auth-expired';
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+function getJwtExpiresAt(token: string): number | null {
+  try {
+    const [, payload] = token.split('.');
+    if (!payload) return null;
+
+    const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const decodedPayload = JSON.parse(window.atob(normalizedPayload));
+    return typeof decodedPayload.exp === 'number' ? decodedPayload.exp * 1000 : null;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function isTokenExpired(token: string): boolean {
+  const expiresAt = getJwtExpiresAt(token);
+  return expiresAt !== null && expiresAt <= Date.now();
+}
 
 const normalizeUser = (raw: any): AuthUser => {
   if (!raw) {
@@ -83,6 +102,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const rawUser = window.localStorage.getItem(STORAGE_USER_KEY);
 
       if (storedToken && rawUser) {
+        if (isTokenExpired(storedToken)) {
+          window.localStorage.removeItem(STORAGE_TOKEN_KEY);
+          window.localStorage.removeItem(STORAGE_USER_KEY);
+          return;
+        }
+
         const parsedUser = normalizeUser(JSON.parse(rawUser));
         setToken(storedToken);
         setUser(parsedUser);
@@ -115,6 +140,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     window.localStorage.removeItem(STORAGE_USER_KEY);
     router.replace('/');
   }, [router]);
+
+  useEffect(() => {
+    window.addEventListener(AUTH_EXPIRED_EVENT, clearSession);
+
+    return () => {
+      window.removeEventListener(AUTH_EXPIRED_EVENT, clearSession);
+    };
+  }, [clearSession]);
 
   const updateUser = useCallback(
     (updater: (prev: AuthUser) => AuthUser) => {
