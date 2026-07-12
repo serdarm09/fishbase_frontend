@@ -5,7 +5,8 @@ const resolveApiBase = () => {
       ? 'https://api.fishbase.fun'
       : 'http://localhost:5000';
   const raw = process.env.NEXT_PUBLIC_API_URL || fallback;
-  const trimmed = raw.endsWith('/') ? raw.slice(0, -1) : raw;
+  const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  const trimmed = withProtocol.endsWith('/') ? withProtocol.slice(0, -1) : withProtocol;
   return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
 };
 
