@@ -1,5 +1,10 @@
 const resolveApiBase = () => {
-  const raw = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
+  const fallback =
+    typeof window !== 'undefined' &&
+    ['fishbase.fun', 'www.fishbase.fun'].includes(window.location.hostname)
+      ? 'https://api.fishbase.fun'
+      : 'http://localhost:5000';
+  const raw = process.env.NEXT_PUBLIC_API_URL || fallback;
   const trimmed = raw.endsWith('/') ? raw.slice(0, -1) : raw;
   return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
 };
@@ -30,9 +35,8 @@ async function request<T>(path: string, options: FetchOptions = {}): Promise<T> 
     });
   } catch (error) {
     const details = error instanceof Error ? error.message : 'Network request failed';
-    throw new Error(
-      `Backend API'ye ulasilamiyor (${API_BASE}). Backend calisiyor mu ve FRONTEND_URL/APP_URL bu site adresini izinliyor mu? Detay: ${details}`
-    );
+    console.error('API connection failed', { apiBase: API_BASE, details });
+    throw new Error('Unable to connect to FishBase servers. Please try again shortly.');
   }
 
   const contentType = response.headers.get('content-type') || '';
