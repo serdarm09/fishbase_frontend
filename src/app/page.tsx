@@ -214,6 +214,15 @@ function ScrollGallerySection({
       const scrollY = window.scrollY || window.pageYOffset || 0;
       const vh = window.innerHeight || 800;
       const ms = maxScroll;
+      const isCompactViewport = window.innerWidth <= 760;
+
+      if (isCompactViewport) {
+        if (heroRef.current) {
+          heroRef.current.style.visibility = 'visible';
+        }
+        rafId = requestAnimationFrame(update);
+        return;
+      }
 
       // Hide Hero video when covered by Black Panel to optimize rendering
       if (heroRef.current) {
@@ -287,6 +296,7 @@ function ScrollGallerySection({
   return (
     <div
       ref={panelRef}
+      className="scroll-gallery-panel"
       style={{
         position: 'fixed',
         inset: 0,
@@ -584,6 +594,7 @@ export default function LandingPage() {
   return (
     <div
       id="scroll-spacer"
+      className="landing-scroll-spacer"
       style={{
         fontFamily: 'var(--font-nunito, Nunito, sans-serif)',
         background: '#000e1a',
@@ -598,6 +609,7 @@ export default function LandingPage() {
       ══════════════════════════════════════════════════════════ */}
       <div
         ref={heroRef}
+        className="landing-hero-frame"
         style={{
           position: 'fixed',
           top: 0,
@@ -636,7 +648,7 @@ export default function LandingPage() {
 
         {/* ── Glassmorphic Nav ─────────────────────────────────── */}
         <nav
-          className="animate-fade-rise"
+          className="landing-hero-nav animate-fade-rise"
           style={{
             position: 'relative',
             zIndex: 10,
@@ -652,7 +664,10 @@ export default function LandingPage() {
         >
           {/* Logo */}
           <Link href="/" className="hero-nav-logo">
-            FishBase
+            <span className="brand-icon-round hero-brand-icon" aria-hidden="true">
+              <img src="/icon.png?v=4" alt="" />
+            </span>
+            <span>FishBase</span>
             <sup style={{ fontSize: '0.5em', opacity: 0.55, verticalAlign: 'super', lineHeight: 0 }}>®</sup>
           </Link>
 
@@ -694,6 +709,7 @@ export default function LandingPage() {
 
         {/* ── Hero content ─────────────────────────────────────── */}
         <div
+          className="landing-hero-content"
           style={{
             position: 'relative', zIndex: 10, flex: 1,
             display: 'flex', alignItems: 'center',
@@ -833,7 +849,7 @@ export default function LandingPage() {
 
         {/* Scroll cue */}
         <div
-          className="animate-fade-rise-delay-5"
+          className="landing-scroll-cue animate-fade-rise-delay-5"
           style={{
             position: 'absolute', bottom: '1.75rem', left: '50%',
             transform: 'translateX(-50%)',

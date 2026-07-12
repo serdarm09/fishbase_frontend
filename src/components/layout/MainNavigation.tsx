@@ -54,6 +54,9 @@ export const MainNavigation = () => {
             fontSize: '1.25rem', letterSpacing: '-0.03em',
           }}
         >
+          <span className="brand-icon-round" aria-hidden="true">
+            <img src="/icon.png?v=4" alt="" />
+          </span>
           <span style={{
             background: 'linear-gradient(135deg, #4AAAF7 0%, #1F7AE0 100%)',
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
