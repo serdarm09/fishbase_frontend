@@ -70,19 +70,34 @@ export default function LeaderboardPage() {
         setIsLoading(true);
         setError(null);
 
-        const [xpRes, streakRes, statsRes, fishingRes] = await Promise.all([
+        const [xpRes, streakRes, statsRes, fishingRes] = await Promise.allSettled([
           leaderboardApi.getXpLeaderboard(token, { limit: 25 }),
           leaderboardApi.getStreakLeaderboard(),
           leaderboardApi.getStats(),
           leaderboardApi.getFishingLeaderboard(token, { limit: 15 }),
         ]);
 
-        setXpEntries(xpRes.leaderboard.entries);
-        setStreakEntries(streakRes.streakLeaderboard?.entries || []);
-        setStats(statsRes.stats);
-        setFishingEntries(fishingRes.fishingLeaderboard?.entries || []);
-        setFishingRank(fishingRes.fishingLeaderboard?.userRank || null);
-        setFishingHighScore(fishingRes.fishingLeaderboard?.userHighScore || null);
+        if (xpRes.status === 'fulfilled') {
+          setXpEntries(xpRes.value.leaderboard.entries);
+        }
+        if (streakRes.status === 'fulfilled') {
+          setStreakEntries(streakRes.value.streakLeaderboard?.entries || []);
+        }
+        if (statsRes.status === 'fulfilled') {
+          setStats(statsRes.value.stats);
+        }
+        if (fishingRes.status === 'fulfilled') {
+          setFishingEntries(fishingRes.value.fishingLeaderboard?.entries || []);
+          setFishingRank(fishingRes.value.fishingLeaderboard?.userRank || null);
+          setFishingHighScore(fishingRes.value.fishingLeaderboard?.userHighScore || null);
+        }
+
+        const failed = [xpRes, streakRes, statsRes, fishingRes].find(
+          (result) => result.status === 'rejected'
+        ) as PromiseRejectedResult | undefined;
+        if (failed) {
+          setError(failed.reason?.message || 'Some leaderboard data could not be loaded.');
+        }
       } catch (err: any) {
         setError(err.message || 'Unable to fetch leaderboard data.');
       } finally {

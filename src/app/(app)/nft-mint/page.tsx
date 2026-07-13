@@ -188,24 +188,39 @@ export default function NftMintPage() {
     if (!token) return;
     try {
       setIsLoading(true);
-      const [marketplaceRes, boatsRes] = await Promise.all([
+      setError(null);
+
+      const [marketplaceRes, boatsRes] = await Promise.allSettled([
         nftApi.getMarketplace(token),
         nftApi.getUserBoats(token),
       ]);
-      setMarketplace((marketplaceRes as any).marketplace?.boats || (marketplaceRes as any).boats || []);
-      setBoosts((marketplaceRes as any).marketplace?.boosts || (marketplaceRes as any).boosts || []);
-      setBoats(
-        (boatsRes.boats || []).map((b: any) => ({
-          id:       `boat-${b.tokenId}`,
-          tokenId:  b.tokenId,
-          boatType: b.boatType || b.type,
-          name:     b.name || b.boatType || b.type,
-          dailyXp:  b.dailyXp,
-          position: b.position || null,
-          isActive: b.isActive,
-          stats:    b.stats || { totalXpEarned: 0 },
-        }))
-      );
+
+      if (marketplaceRes.status === 'fulfilled') {
+        setMarketplace((marketplaceRes.value as any).marketplace?.boats || (marketplaceRes.value as any).boats || []);
+        setBoosts((marketplaceRes.value as any).marketplace?.boosts || (marketplaceRes.value as any).boosts || []);
+      }
+
+      if (boatsRes.status === 'fulfilled') {
+        setBoats(
+          (boatsRes.value.boats || []).map((b: any) => ({
+            id:       `boat-${b.tokenId}`,
+            tokenId:  b.tokenId,
+            boatType: b.boatType || b.type,
+            name:     b.name || b.boatType || b.type,
+            dailyXp:  b.dailyXp,
+            position: b.position || null,
+            isActive: b.isActive,
+            stats:    b.stats || { totalXpEarned: 0 },
+          }))
+        );
+      }
+
+      const failed = [marketplaceRes, boatsRes].find(
+        (result) => result.status === 'rejected'
+      ) as PromiseRejectedResult | undefined;
+      if (failed) {
+        setError(failed.reason?.message || 'Some fleet data could not be loaded.');
+      }
     } catch (err: any) {
       setError(err.message || 'Unable to load fleet data.');
     } finally {

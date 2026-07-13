@@ -21,8 +21,21 @@ function notifyAuthExpired() {
   window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
 }
 
+function normalizeAuthToken(token?: string) {
+  if (!token) return undefined;
+
+  const normalized = String(token).trim().replace(/^Bearer\s+/i, '');
+  if (!normalized || /[\r\n]/.test(normalized)) {
+    notifyAuthExpired();
+    throw new Error('Your session is invalid. Please connect your wallet again.');
+  }
+
+  return normalized;
+}
+
 async function request<T>(path: string, options: FetchOptions = {}): Promise<T> {
   const { token, headers, ...rest } = options;
+  const authToken = normalizeAuthToken(token);
   let response: Response;
 
   try {
@@ -30,7 +43,7 @@ async function request<T>(path: string, options: FetchOptions = {}): Promise<T> 
       ...rest,
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
         ...(headers || {}),
       },
     });
